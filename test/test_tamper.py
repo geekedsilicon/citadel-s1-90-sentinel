@@ -254,13 +254,24 @@ if COCOTB_AVAILABLE:
         
         clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
         cocotb.start_soon(clock.start())
-        await reset_sentinel(dut)
+        
+        # Power cycle to exit any previous BRICK state
+        dut.ena.value = 0
+        await ClockCycles(dut.clk, 5)
+        dut.ena.value = 1
+        dut.ui_in.value  = 0
+        dut.uio_in.value = 0
+        dut.rst_n.value  = 0
+        await ClockCycles(dut.clk, 10)
+        dut.rst_n.value  = 1
+        await ClockCycles(dut.clk, 2)
         
         # Verify normal state
         dut.ui_in.value = 0x00
         await ClockCycles(dut.clk, 2)
         pre_check = int(dut.uo_out.value)
-        assert pre_check == SEG_LOCKED
+        assert pre_check == SEG_LOCKED, \
+            f"Pre-test check failed: expected {hex(SEG_LOCKED)}, got {hex(pre_check)}"
         dut._log.info(f"  [INFO] Pre-test: LOCKED ({hex(pre_check)})")
         
         # Toggle uio_in[0] — should NOT trigger BRICK

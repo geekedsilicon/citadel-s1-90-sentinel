@@ -57,7 +57,7 @@ VERILOG_SOURCES += $(PWD)/tb.v
 TOPLEVEL         = tb
 
 # --- TEST MODULE (cocotb 2.0 — variable renamed from MODULE) ----------------
-COCOTB_TEST_MODULES = test
+COCOTB_TEST_MODULES ?= test
 
 # --- COCOTB EXECUTION -------------------------------------------------------
 include $(shell cocotb-config --makefiles)/Makefile.sim

@@ -39,8 +39,8 @@ module tt_um_vaelix_sentinel (
     localparam logic STATE_NORMAL = 1'b0;
     localparam logic STATE_BRICK  = 1'b1;
     
-    reg current_state;
-    reg [6:0] uio_in_prev;  // Track previous state of uio_in[7:1]
+    reg current_state = STATE_NORMAL;   // Initialize to NORMAL state
+    reg [6:0] uio_in_prev = 7'h00;      // Initialize to zero
     
     /* ---------------------------------------------------------------------
      * 2. AUTHORIZATION LOGIC
@@ -61,10 +61,13 @@ module tt_um_vaelix_sentinel (
     wire tamper_detected;
     assign tamper_detected = (uio_in[7:1] != uio_in_prev) && rst_n;
     
-    always @(posedge clk or negedge ena) begin
+    always @(posedge clk) begin
         if (!ena) begin
             // Power cycle reset: clear BRICK state
             current_state <= STATE_NORMAL;
+            uio_in_prev   <= 7'h00;
+        end else if (!rst_n) begin
+            // Soft reset: clear state tracker but preserve BRICK if set
             uio_in_prev   <= 7'h00;
         end else begin
             if (current_state == STATE_NORMAL && tamper_detected) begin
