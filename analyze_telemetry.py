@@ -11,6 +11,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from datetime import datetime
@@ -153,7 +154,7 @@ class TelemetryAnalyzer:
 
     def generate_markdown_report(self) -> str:
         """Generate a Markdown-formatted summary report."""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
 
         report_lines = [
             "# 🔍 MISSION DEBRIEF — SENTINEL INTERROGATION REPORT",
@@ -456,8 +457,6 @@ def update_readme_with_report(readme_path: Path, report: str) -> None:
     # Check if markers already exist
     if start_marker in readme_content and end_marker in readme_content:
         # Replace existing section
-        import re
-
         pattern = (
             f"{re.escape(start_marker)}.*?{re.escape(end_marker)}"
         )
