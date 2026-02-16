@@ -7,17 +7,18 @@
 
 project:
   # [ACTION REQUIRED] REPLACE '0' WITH YOUR ACTUAL WOKWI PROJECT ID
-  wokwi_id:     0       
+  # NOTE: wokwi_id is 0 because this is a custom Verilog project, not Wokwi
+  wokwi_id: 0
 
-  title:        "Vaelix Sentinel Mark I"
-  author:       "Vaelix Systems R&D"
-  discord:      ""      
-  description:  "Hardware-level cryptographic Challenge Coin. 8-bit authorization gate (Key: 0xB6)."
-  language:     "Wokwi" 
-  clock_hz:     25000000 # Optimized for Stability (25 MHz)
+  title: "Vaelix Sentinel Mark I"
+  author: "Vaelix Systems R&D"
+  discord: ""
+  description: "Hardware-level cryptographic Challenge Coin. 8-bit authorization gate (Key: 0xB6)."
+  language: "Verilog" # Custom Verilog project (not Wokwi)
+  clock_hz: 25000000 # Optimized for Stability (25 MHz)
 
   # Footprint: Standard 1x1 Tile for High-Yield Fabrication
-  tiles: "1x1"          
+  tiles: "1x1"
 
 # ============================================================================
 # SENTINEL INTERFACE PROTOCOL
