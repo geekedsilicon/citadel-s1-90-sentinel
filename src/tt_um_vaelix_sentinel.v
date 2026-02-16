@@ -68,12 +68,12 @@ module tt_um_vaelix_sentinel (
      * for synthesis constants. wire-with-init is valid in Yosys but is not
      * portable and is semantically misleading (these are not driven nets).
      */
-    localparam [7:0] SEG_LOCKED   = 8'hC7;
-    localparam [7:0] SEG_VERIFIED = 8'hC1;
-    localparam [7:0] SEG_OFF      = 8'hFF;
+    localparam logic [7:0] SegLocked   = 8'hC7;
+    localparam logic [7:0] SegVerified = 8'hC1;
+    localparam logic [7:0] SegOff      = 8'hFF;
 
-    assign uo_out = internal_ena ? (is_authorized ? SEG_VERIFIED : SEG_LOCKED)
-                                 : SEG_OFF;
+    assign uo_out = internal_ena ? (is_authorized ? SegVerified : SegLocked)
+                                 : SegOff;
 
     /* ---------------------------------------------------------------------
      * 4. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
