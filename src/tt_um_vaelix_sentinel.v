@@ -200,6 +200,6 @@ module tt_um_vaelix_sentinel (
      * Prevents DRC warnings for unreferenced ports during CI/CD.
      * The trailing 1'b0 ensures the reduction is never optimised to a constant.
      */
-    wire _unused_signal = &{uio_in, 1'b0};
+    (* keep *) wire _unused_signal = &{uio_in, 1'b0};
 
 endmodule

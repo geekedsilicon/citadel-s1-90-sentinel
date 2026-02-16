@@ -68,6 +68,6 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 visualize:
 	@echo "VAELIX: Generating Logic Schematic for DigitalJS..."
-	yosys -p "read_verilog ../src/cells.v ../src/project.v; prep -top tt_um_vaelix_sentinel; write_json sentinel_schematic.json"
+	yosys -p "read_verilog ../src/cells.v ../src/tt_um_vaelix_sentinel.v; prep -top tt_um_vaelix_sentinel; write_json sentinel_schematic.json"
 	@echo "VAELIX: Schematic generated: test/sentinel_schematic.json"
 	@echo "VAELIX: Upload this file to https://digitaljs.tilk.eu/ to see the Gate."

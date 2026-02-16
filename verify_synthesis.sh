@@ -13,6 +13,9 @@
 
 set -e  # Exit on error
 
+# Change to script directory (handles being run from anywhere)
+cd "$(dirname "$0")"
+
 echo "============================================================================"
 echo "TASK XVII: THE TARNOVSKY TOKEN - Synthesis Verification"
 echo "============================================================================"
@@ -71,7 +74,6 @@ write_verilog -noattr synthesized.v
 tee -o synthesis_report.txt stat -top tt_um_vaelix_sentinel
 EOF
 
-cd /home/runner/work/citadel-s1-90-sentinel/citadel-s1-90-sentinel
 yosys "$WORK_DIR/synth.ys" > "$WORK_DIR/yosys_output.log" 2>&1
 
 echo "✓ Synthesis complete"
