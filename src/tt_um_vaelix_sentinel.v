@@ -37,6 +37,24 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
+     * 1. GERLINSKY GUARD: VOLTAGE GLITCH DETECTOR
+     * ---------------------------------------------------------------------
+     * The Gerlinsky Guard detects voltage glitches by monitoring propagation
+     * delay changes in a buffer chain. If a glitch is detected, it forces
+     * an immediate hard reset to protect the system integrity.
+     */
+    wire glitch_detected;
+    glitch_detector gerlinsky_guard (
+        .GLITCH_DETECTED(glitch_detected)
+    );
+    
+    // Internal reset: combines external reset with glitch detection
+    // Active LOW: reset asserted when rst_n=0 OR glitch_detected=1
+    wire internal_rst_n;
+    assign internal_rst_n = rst_n & ~glitch_detected;
+
+    /* ---------------------------------------------------------------------
+     * 2. AUTHORIZATION LOGIC
      * 1. AUTHORIZATION LOGIC WITH KEY REGISTER
      * ---------------------------------------------------------------------
      * HARDCODED_KEY: 0xB6 (1011_0110)
@@ -57,6 +75,7 @@ module tt_um_vaelix_sentinel (
     assign is_authorized = key_match & key_register;
 
     /* ---------------------------------------------------------------------
+     * 3. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
      * 2. STATE MACHINE LOGIC
      * ---------------------------------------------------------------------
      */
@@ -173,6 +192,7 @@ module tt_um_vaelix_sentinel (
     );
 
     /* ---------------------------------------------------------------------
+     * 4. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
      * 6. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
      * ---------------------------------------------------------------------
      * Bit mapping: uo_out = { dp, g, f, e, d, c, b, a }  (a = bit 0)
@@ -196,6 +216,7 @@ module tt_um_vaelix_sentinel (
                                  : SegOff;
 
     /* ---------------------------------------------------------------------
+     * 5. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * 7. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * ---------------------------------------------------------------------
      * Provides immediate high-intensity visual feedback upon authorization.
