@@ -1399,11 +1399,11 @@ if COCOTB_AVAILABLE:
             else:
                 dut.rst_n.value = 1
             
-            # Store current control states
+            # Store current control states (these will affect output after clock edge)
             current_ena = int(dut.ena.value)
             current_rst_n = int(dut.rst_n.value)
             
-            # Wait for clock edge
+            # Wait for clock edge (output should reflect the control signals set above)
             await ClockCycles(dut.clk, 1)
             
             # Check invariant: if rst_n=0 or ena=0, uo_out must be 0xFF
@@ -1423,7 +1423,7 @@ if COCOTB_AVAILABLE:
         # Report results
         if violations:
             dut._log.error(f"  TEST FAILED: {len(violations)} invariant violations detected")
-            assert False, f"CHAOS MONKEY FAILURE: {len(violations)} violations"
+            assert False, f"Random noise injection test failed: {len(violations)} invariant violations detected"
         else:
             dut._log.info(f"  [PASS] All 1,000 cycles completed with no violations")
             dut._log.info("TEST 16: COMPLETE")
