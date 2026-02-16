@@ -59,11 +59,11 @@ jobs:
       - name: Find main Verilog file
         id: find-verilog
         run: |
-          # Look for project.v first, then fall back to tt_um_*.v
+          # Look for project.v first (per problem statement), then fall back to tt_um_*.v
           if [ -f "src/project.v" ]; then
-            echo "verilog_file=src/project.v" >> $GITHUB_OUTPUT
+            VFILE="src/project.v"
           elif [ -f "src/tt_um_vaelix_sentinel.v" ]; then
-            echo "verilog_file=src/tt_um_vaelix_sentinel.v" >> $GITHUB_OUTPUT
+            VFILE="src/tt_um_vaelix_sentinel.v"
           else
             # Find any .v file that starts with tt_um_
             VFILE=$(find src -name "tt_um_*.v" | head -n 1)
@@ -71,9 +71,9 @@ jobs:
               echo "ERROR: No suitable Verilog file found"
               exit 1
             fi
-            echo "verilog_file=$VFILE" >> $GITHUB_OUTPUT
           fi
-          echo "Found Verilog file: $(cat $GITHUB_OUTPUT | grep verilog_file | cut -d= -f2)"
+          echo "verilog_file=$VFILE" >> $GITHUB_OUTPUT
+          echo "Found Verilog file: $VFILE"
       
       - name: Generate XML with Verilator
         run: |
