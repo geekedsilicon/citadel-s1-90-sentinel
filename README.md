@@ -62,47 +62,50 @@ This chip is the direct descendant of the **Project Citadel** FPGA prototyping p
 
 ---
 
-## 06 | VERIFICATION & COVERAGE
-**"Test the Happy Path. Test the Impossible Path."**
+## 06 | PDK PRIMITIVE MAPPING
+For accurate post-synthesis simulation and improved timing/area estimation, refer to the **PDK Primitive Mapping Guide**:
+* **Detailed Documentation:** [docs/pdk_primitive_mapping.md](docs/pdk_primitive_mapping.md)
+* **Quick Reference:** [docs/sg13g2_cell_reference.txt](docs/sg13g2_cell_reference.txt)
+* **Techmap File:** [src/techmap_citadel_sg13g2.v](src/techmap_citadel_sg13g2.v)
 
-The Sentinel Mark I enforces the **Vaelix Verification Standard**: 100% code coverage is mandatory. Every line of Verilog must be executed, every branch exercised.
-
-### **The Inspector (Coverage Analysis)**
-
-```bash
-cd test
-make COVERAGE=1        # Run tests with coverage collection
-make check-coverage    # Enforce 100% coverage requirement
-```
-
-The Inspector parses coverage data and exits with status code 1 if line or branch coverage is below 100%. No code path may remain untested on a core this critical.
-
-**Requirements:**
-* Verilator 5.036+ (for coverage collection)
-* Cocotb 2.0.1+ (test framework)
-
-See [`docs/COVERAGE.md`](docs/COVERAGE.md) for detailed setup instructions.
+These resources map our behavioral cells (from `src/cells.v`) to specific IHP SG13G2 standard cell instances, ensuring physical reality matches our logic intent.
 
 ---
 
-## 07 | TESTING
+## 06 | VERIFICATION & TELEMETRY ANALYSIS
 
-Run the comprehensive test suite:
+The Sentinel Mark I includes a comprehensive verification suite powered by Cocotb. The **Telemetry Analyzer** automates post-test analysis and mission debrief generation.
+
+### 🔬 Automated Mission Debrief
+
+After running the test suite, generate a comprehensive analysis report:
 
 ```bash
-cd test
-pip install -r requirements.txt
-make                   # Run with Icarus Verilog
-make GATES=yes         # Run gate-level simulation
+cd test && make -B  # Run verification suite
+cd ..
+python analyze_telemetry.py --output MISSION_DEBRIEF.md
 ```
 
-The test suite includes 15 verification scenarios covering:
-* Authorization sequences
-* Brute-force key sweeps
-* Reset behavior
-* Hamming distance attacks
-* Signal integrity checks
-* Rapid cycling stress tests
+**Features:**
+- 📊 Parse Cocotb test results (results.xml)
+- ⏱️ Extract failure timestamps from waveform files
+- 📝 Generate detailed Markdown reports
+- 🔍 Automatic README.md integration
+
+**Quick Start:**
+
+```bash
+# View report on console
+python analyze_telemetry.py
+
+# Save to file
+python analyze_telemetry.py --output debrief.md
+
+# Update README with results
+python analyze_telemetry.py --update-readme
+```
+
+For complete documentation, see: [**docs/TELEMETRY_ANALYZER.md**](docs/TELEMETRY_ANALYZER.md)
 
 ---
 **VAELIX SYSTEMS** *Tier 1 Defense Technology.* © 2026 Vaelix Systems. All Rights Reserved.
