@@ -107,18 +107,29 @@ module ring_oscillator (
     wire osc_out;
     assign osc_out = ring_chain[30];
 
+    // Edge detection for oscillator output
+    reg osc_prev;
+    wire osc_edge;
+    
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            osc_prev <= 1'b0;
+        end else begin
+            osc_prev <= osc_out;
+        end
+    end
+    
+    // Detect rising edge of oscillator
+    assign osc_edge = osc_out & ~osc_prev;
+
     // Counter - counts oscillations when enabled
     reg [31:0] counter;
     
-    // Gated oscillation signal
-    wire osc_gated;
-    assign osc_gated = osc_out & enable;
-    
-    // Counter logic
-    always @(posedge osc_gated or negedge rst_n) begin
+    // Counter logic - increment on oscillator edges when enabled
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             counter <= 32'h0;
-        end else if (enable) begin
+        end else if (enable && osc_edge) begin
             counter <= counter + 1;
         end
     end
