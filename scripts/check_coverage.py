@@ -86,7 +86,8 @@ class CoverageAnalyzer:
                         line_num = int(parts[0])
                         block = parts[1]
                         branch = parts[2]
-                        taken = parts[3].strip()  # Store as string, may be '-', '0', or count
+                        # taken can be: '-' (not executed), '0' (not taken), 'n/a' (not applicable), or numeric count
+                        taken = parts[3].strip()
                         
                         if line_num not in self.files[current_file]['branches']:
                             self.files[current_file]['branches'][line_num] = []
@@ -152,7 +153,9 @@ class CoverageAnalyzer:
             missed_branches = []
             for line_num, branches in data['branches'].items():
                 for branch in branches:
-                    if branch['taken'] == '-' or branch['taken'] == '0':
+                    # Branch is missed if: '-' (not executed), '0' (not taken)
+                    # 'n/a' indicates not applicable and should not be counted as missed
+                    if branch['taken'] in ('-', '0'):
                         missed_branches.append({
                             'line': line_num,
                             'block': branch['block'],

@@ -69,10 +69,12 @@ ifeq ($(COVERAGE),1)
     # Verify Verilator version
     VERILATOR_VERSION := $(shell verilator --version 2>/dev/null | head -1 | awk '{print $$2}')
     VERILATOR_MAJOR := $(shell echo $(VERILATOR_VERSION) | cut -d. -f1)
-    VERILATOR_MINOR := $(shell echo $(VERILATOR_VERSION) | cut -d. -f2)
+    VERILATOR_MINOR_RAW := $(shell echo $(VERILATOR_VERSION) | cut -d. -f2)
+    # Force base-10 interpretation to avoid octal issues with leading zeros (e.g., 036)
+    VERILATOR_MINOR := $(shell echo $$((10\#$(VERILATOR_MINOR_RAW))) 2>/dev/null || echo 0)
     
     # Check if Verilator meets minimum version (5.036)
-    # Note: Verilator uses format 5.036, where 036 = 36 in version comparison
+    # Note: Verilator uses format 5.036, where minor version may have leading zeros
     VERILATOR_OK := $(shell [ "$(VERILATOR_MAJOR)" -gt 5 -o \( "$(VERILATOR_MAJOR)" -eq 5 -a "$(VERILATOR_MINOR)" -ge 36 \) ] && echo 1 || echo 0)
     
     ifneq ($(VERILATOR_OK),1)
