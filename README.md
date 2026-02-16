@@ -28,9 +28,26 @@ Unlike software, which can be patched, the logic of the Sentinel Mark I is immut
 * **The Response:** * **State A (Denied):** The 7-segment display shows a "Locked" pattern (`0xC7`). The chip remains silent.
     * **State B (Verified):** Upon correct key entry, the display shifts to "Verified" (`0xC1`) and the Status Array ignites.
 
+### SECURITY: THE KAMKAR EQUALIZER
+The authentication logic implements a **constant-time bitslicing comparator** to defend against power analysis attacks. Every authentication attempt performs exactly the same gate operations (8 XOR + 7 OR + 1 NOT), ensuring that power consumption reveals no information about the key. This eliminates Hamming Weight leakage and defeats side-channel attacks. See [KAMKAR_EQUALIZER.md](docs/KAMKAR_EQUALIZER.md) for technical details.
+
 ---
 
 ## 03 | OPERATIONAL INTERFACE
+
+### Pinout Table
+<!-- BEGIN PINOUT TABLE -->
+| Port Name | Direction | Width | Description |
+|-----------|-----------|-------|-------------|
+| `ui_in` | input | [7:0] | Dedicated inputs — Key Interface |
+| `uo_out` | output | [7:0] | Dedicated outputs — Display Interface |
+| `uio_in` | input | [7:0] | IOs: Input path — Secondary Telemetry |
+| `uio_out` | output | [7:0] | IOs: Output path — Status Array |
+| `uio_oe` | output | [7:0] | IOs: Enable path — Port Directional Control |
+| `ena` | input | 1 | Power-state enable |
+| `clk` | input | 1 | System Clock |
+| `rst_n` | input | 1 | Global Reset (Active LOW) |
+<!-- END PINOUT TABLE -->
 To verify custody of the Sentinel Mark I, the operator must interface with the **Vaelix Evaluation Terminal** (TT06 Demo Board).
 
 ### **Authorization Sequence**
@@ -62,27 +79,50 @@ This chip is the direct descendant of the **Project Citadel** FPGA prototyping p
 
 ---
 
-## 06 | CI/CD HARDENING: THE WARDEN
-The Sentinel Mark I employs automated metrics monitoring to enforce design efficiency and prevent unwanted bloat.
+## 06 | PDK PRIMITIVE MAPPING
+For accurate post-synthesis simulation and improved timing/area estimation, refer to the **PDK Primitive Mapping Guide**:
+* **Detailed Documentation:** [docs/pdk_primitive_mapping.md](docs/pdk_primitive_mapping.md)
+* **Quick Reference:** [docs/sg13g2_cell_reference.txt](docs/sg13g2_cell_reference.txt)
+* **Techmap File:** [src/techmap_citadel_sg13g2.v](src/techmap_citadel_sg13g2.v)
 
-**The Warden** is an automated CI/CD guard that:
-* Compares gate count (cell count) between the current branch and the main branch baseline
-* **Fails the build if gate count increases by more than 5%** without explicit authorization
-* Provides two bypass mechanisms for justified increases:
-  * Include `[bypass-metrics]` in your commit message
-  * Manually trigger the workflow with the "Bypass metrics threshold check" option enabled
+These resources map our behavioral cells (from `src/cells.v`) to specific IHP SG13G2 standard cell instances, ensuring physical reality matches our logic intent.
 
-**Why This Matters:**
-* Gate count correlates directly with power consumption and silicon area
-* Prevents accidental logic bloat from degrading the design
-* Enforces "symmetry and efficiency" — the Vaelix engineering standard
+---
 
-**Pipeline Flow:**
+## 06 | VERIFICATION & TELEMETRY ANALYSIS
+
+The Sentinel Mark I includes a comprehensive verification suite powered by Cocotb. The **Telemetry Analyzer** automates post-test analysis and mission debrief generation.
+
+### 🔬 Automated Mission Debrief
+
+After running the test suite, generate a comprehensive analysis report:
+
+```bash
+cd test && make -B  # Run verification suite
+cd ..
+python analyze_telemetry.py --output MISSION_DEBRIEF.md
 ```
-gds → metrics (THE WARDEN) → viewer
+
+**Features:**
+- 📊 Parse Cocotb test results (results.xml)
+- ⏱️ Extract failure timestamps from waveform files
+- 📝 Generate detailed Markdown reports
+- 🔍 Automatic README.md integration
+
+**Quick Start:**
+
+```bash
+# View report on console
+python analyze_telemetry.py
+
+# Save to file
+python analyze_telemetry.py --output debrief.md
+
+# Update README with results
+python analyze_telemetry.py --update-readme
 ```
 
-
+For complete documentation, see: [**docs/TELEMETRY_ANALYZER.md**](docs/TELEMETRY_ANALYZER.md)
 
 ---
 **VAELIX SYSTEMS** *Tier 1 Defense Technology.* © 2026 Vaelix Systems. All Rights Reserved.
