@@ -72,8 +72,8 @@ jobs:
           for pattern in "${PATTERNS[@]}"; do
             echo "Checking for pattern: $pattern"
             
-            # Search all tracked files, excluding .git directory
-            if grep -r --include="*" --exclude-dir=".git" -n "$pattern" . ; then
+            # Search all tracked files, excluding .git directory and this workflow file
+            if grep -r --include="*" --exclude-dir=".git" --exclude="osint_scan.yaml" -n "$pattern" . ; then
               echo "❌ VIOLATION: Found '$pattern' in the above files"
               VIOLATIONS_FOUND=1
             else
