@@ -123,7 +123,7 @@ async def test_glitch_hunter(dut):
                     dut._log.error("="*72)
                     dut._log.error("🚨 GLITCH DETECTED! CITADEL BREACHED! 🚨")
                     dut._log.error("="*72)
-                    dut._log.error(f"Timestamp: {timestamp_ps} ps ({timestamp_ns:.3f} ns)")
+                    dut._log.error(f"Timestamp: {timestamp_ps} ps ({timestamp_ns} ns)")
                     dut._log.error(f"Input (ui_in): {hex(current_input)} (Expected ONLY {hex(VAELIX_KEY)})")
                     dut._log.error(f"Output (uo_out): {hex(current_output)} (VERIFIED - UNAUTHORIZED!)")
                     dut._log.error("="*72)
@@ -137,36 +137,37 @@ async def test_glitch_hunter(dut):
     # Start the glitch monitor as a background coroutine
     monitor_task = cocotb.start_soon(glitch_monitor())
     
-    # Main test loop: Drive ui_in through all 256 possible values
-    dut._log.info("Sweeping ui_in from 0x00 to 0xFF...")
-    dut._log.info("Monitoring for transient VERIFIED (0xC1) spikes...")
-    dut._log.info("")
-    
-    for key in range(256):
-        # Set the input
-        dut.ui_in.value = key
-        
-        # Wait for a clock cycle to allow the output to settle
-        await ClockCycles(dut.clk, 1)
-        
-        # Log progress every 32 keys
-        if key % 32 == 0:
-            dut._log.info(f"  Progress: Testing key {hex(key)}... (no glitches detected so far)")
-        
-        # If a glitch was detected, the monitor will have already failed the test
-        if glitch_detected:
-            break
-    
-    # If we made it through the entire sweep without glitches
-    if not glitch_detected:
+    try:
+        # Main test loop: Drive ui_in through all 256 possible values
+        dut._log.info("Sweeping ui_in from 0x00 to 0xFF...")
+        dut._log.info("Monitoring for transient VERIFIED (0xC1) spikes...")
         dut._log.info("")
-        dut._log.info("="*72)
-        dut._log.info("✓ GLITCH HUNTER: COMPLETE")
-        dut._log.info("="*72)
-        dut._log.info(f"✓ All 256 keys tested")
-        dut._log.info(f"✓ Zero transient spikes detected")
-        dut._log.info(f"✓ Gate-level stability: VERIFIED")
-        dut._log.info("="*72)
-    
-    # Clean up: Stop the monitor coroutine
-    monitor_task.kill()
+        
+        for key in range(256):
+            # Set the input
+            dut.ui_in.value = key
+            
+            # Wait for a clock cycle to allow the output to settle
+            await ClockCycles(dut.clk, 1)
+            
+            # Log progress every 32 keys
+            if key % 32 == 0:
+                dut._log.info(f"  Progress: Testing key {hex(key)}... (no glitches detected so far)")
+            
+            # If a glitch was detected, the monitor will have already failed the test
+            if glitch_detected:
+                break
+        
+        # If we made it through the entire sweep without glitches
+        if not glitch_detected:
+            dut._log.info("")
+            dut._log.info("="*72)
+            dut._log.info("✓ GLITCH HUNTER: COMPLETE")
+            dut._log.info("="*72)
+            dut._log.info(f"✓ All 256 keys tested")
+            dut._log.info(f"✓ Zero transient spikes detected")
+            dut._log.info(f"✓ Gate-level stability: VERIFIED")
+            dut._log.info("="*72)
+    finally:
+        # Clean up: Stop the monitor coroutine (ensures cleanup even on assertion failure)
+        monitor_task.kill()
