@@ -51,6 +51,9 @@ runs/
 # TinyTapeout submission packages are generated artifacts, not source.
 tt_submission/
 
+# Verilator build artifacts
+obj_dir/
+
 # --- PHASE IV: GENERATED NETLISTS --------------------------------------------
 # The Gate-Level Netlist is produced by the GDS hardening action.
 # It is injected into the test environment by CI — not committed to source.
