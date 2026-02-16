@@ -71,4 +71,41 @@ For accurate post-synthesis simulation and improved timing/area estimation, refe
 These resources map our behavioral cells (from `src/cells.v`) to specific IHP SG13G2 standard cell instances, ensuring physical reality matches our logic intent.
 
 ---
+
+## 06 | VERIFICATION & TELEMETRY ANALYSIS
+
+The Sentinel Mark I includes a comprehensive verification suite powered by Cocotb. The **Telemetry Analyzer** automates post-test analysis and mission debrief generation.
+
+### 🔬 Automated Mission Debrief
+
+After running the test suite, generate a comprehensive analysis report:
+
+```bash
+cd test && make -B  # Run verification suite
+cd ..
+python analyze_telemetry.py --output MISSION_DEBRIEF.md
+```
+
+**Features:**
+- 📊 Parse Cocotb test results (results.xml)
+- ⏱️ Extract failure timestamps from waveform files
+- 📝 Generate detailed Markdown reports
+- 🔍 Automatic README.md integration
+
+**Quick Start:**
+
+```bash
+# View report on console
+python analyze_telemetry.py
+
+# Save to file
+python analyze_telemetry.py --output debrief.md
+
+# Update README with results
+python analyze_telemetry.py --update-readme
+```
+
+For complete documentation, see: [**docs/TELEMETRY_ANALYZER.md**](docs/TELEMETRY_ANALYZER.md)
+
+---
 **VAELIX SYSTEMS** *Tier 1 Defense Technology.* © 2026 Vaelix Systems. All Rights Reserved.
