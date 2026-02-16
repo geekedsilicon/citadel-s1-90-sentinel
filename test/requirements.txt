@@ -1,2 +1,10 @@
-pytest==8.3.4
-cocotb==1.9.2
+# ============================================================================
+# VAELIX | PROJECT CITADEL — Test Dependencies
+# ============================================================================
+# VERSION:  1.1.0
+# FIX LOG:
+#   v1.1.0 — [CRITICAL] cocotb 1.9.2 -> 2.0.1 (aligns with COCOTB_TEST_MODULES)
+#   v1.1.0 — pytest 8.3.4 -> 8.4.2 (latest stable, cocotb 2.0 compatibility)
+# ============================================================================
+pytest==8.4.2
+cocotb==2.0.1
