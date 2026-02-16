@@ -1,0 +1,3 @@
+VAELIX: Generating coverage report...
+VAELIX ERROR: No coverage.dat found. Run 'make COVERAGE=1' first.
+make: *** [Makefile:99: coverage-report] Error 1
