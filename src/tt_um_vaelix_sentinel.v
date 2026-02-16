@@ -31,16 +31,32 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
-     * 1. AUTHORIZATION LOGIC
+     * 1. INPUT SANITIZER (KAMKAR HYSTERESIS)
+     * ---------------------------------------------------------------------
+     * Debounces the ui_in bus and protects against fuzzing attacks.
+     * Signal must be stable for 4 cycles before being accepted.
+     * If >10 changes in 100 cycles, locks input for 1 second.
+     */
+    wire [7:0] ui_in_debounced;
+    
+    debouncer input_sanitizer (
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .signal_in (ui_in),
+        .signal_out(ui_in_debounced)
+    );
+
+    /* ---------------------------------------------------------------------
+     * 2. AUTHORIZATION LOGIC
      * ---------------------------------------------------------------------
      * HARDCODED_KEY: 0xB6 (1011_0110)
      * Direct bitwise comparison for instantaneous verification.
      */
     wire is_authorized;
-    assign is_authorized = (ui_in == 8'b1011_0110);
+    assign is_authorized = (ui_in_debounced == 8'b1011_0110);
 
     /* ---------------------------------------------------------------------
-     * 2. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
+     * 3. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
      * ---------------------------------------------------------------------
      * The 'buffer_cell' (defined in cells.v, compiled together by TT build)
      * is our structural signature. Gating outputs with 'internal_ena'
@@ -53,7 +69,7 @@ module tt_um_vaelix_sentinel (
     );
 
     /* ---------------------------------------------------------------------
-     * 3. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
+     * 4. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
      * ---------------------------------------------------------------------
      * Bit mapping: uo_out = { dp, g, f, e, d, c, b, a }  (a = bit 0)
      * Common Anode / Active LOW: a 0-bit drives a segment ON.
@@ -76,7 +92,7 @@ module tt_um_vaelix_sentinel (
                                  : SegOff;
 
     /* ---------------------------------------------------------------------
-     * 4. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
+     * 5. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * ---------------------------------------------------------------------
      * Provides immediate high-intensity visual feedback upon authorization.
      * All UIO pins are forced to Output mode.
@@ -90,11 +106,11 @@ module tt_um_vaelix_sentinel (
     assign uio_oe  = 8'hFF;
 
     /* ---------------------------------------------------------------------
-     * 5. SYSTEM STUBS
+     * 6. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
      * The trailing 1'b0 ensures the reduction is never optimised to a constant.
      */
-    wire _unused_signal = &{uio_in, clk, rst_n, 1'b0};
+    wire _unused_signal = &{uio_in, 1'b0};
 
 endmodule
