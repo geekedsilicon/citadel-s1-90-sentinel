@@ -199,6 +199,8 @@ module tt_um_vaelix_sentinel (
      * 7. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * ---------------------------------------------------------------------
      * Provides immediate high-intensity visual feedback upon authorization.
+     * When not measuring oscillator (uio_in[0]=0), shows glow status.
+     * When measuring oscillator (uio_in[0]=1), shows lower 8 bits of counter.
      * All UIO pins are forced to Output mode.
      *
      * Fix: `&&` (logical AND) replaced with `&` (bitwise AND).
@@ -206,7 +208,9 @@ module tt_um_vaelix_sentinel (
      * is the correct idiomatic operator for HDL gate-level logic and
      * avoids implicit boolean reduction of multi-bit types if ports change.
      */
-    assign uio_out = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
+    wire [7:0] glow_output;
+    assign glow_output = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
+    assign uio_out = uio_in[0] ? osc_count[7:0] : glow_output;
     assign uio_oe  = 8'hFF;
 
     /* ---------------------------------------------------------------------
