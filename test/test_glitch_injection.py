@@ -78,6 +78,7 @@ async def test_glitch_injection_triggers_reset(dut):
     dut._log.info("Phase 2: Inject voltage glitch (force glitch_detected high)")
     
     # Force the glitch_detected signal high to simulate a voltage glitch
+    # Signal hierarchy: tb.user_project (tt_um_vaelix_sentinel) -> glitch_detected wire
     # This accesses the internal signal from the glitch detector instance
     dut.user_project.glitch_detected.value = 1
     

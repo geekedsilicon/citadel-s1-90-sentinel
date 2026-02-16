@@ -28,8 +28,8 @@ module glitch_detector (
     // Chain of buffer signals: buf_chain[0] is input, buf_chain[10] is output
     wire [10:0] buf_chain;
     
-    // Create a ring oscillator with XOR feedback
-    // The XOR inverts when output differs from a reference, creating oscillation
+    // Create a ring oscillator with inverter feedback
+    // The inverter creates continuous oscillation through the buffer chain
     // Under voltage glitch, timing changes cause detectable anomalies
     assign buf_chain[0] = ~buf_chain[10];  // Inverter creates oscillation
     
