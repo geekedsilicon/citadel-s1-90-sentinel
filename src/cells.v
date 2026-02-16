@@ -29,6 +29,7 @@ endmodule
  * --------------------------------------------------------------------- */
 
 // CITADEL_BUFFER: Signal conditioning and mesh synchronization.
+/* verilator lint_off DECLFILENAME */
 (* keep_hierarchy *)
 module buffer_cell (
     input  wire in,
@@ -105,6 +106,7 @@ module not_cell (
 );
     assign out = ~in;
 endmodule
+/* verilator lint_on DECLFILENAME */
 
 // CITADEL_MUX: Dynamic data routing for the Sentinel Mesh.
 (* keep_hierarchy *)

@@ -60,7 +60,52 @@ To verify custody of the Sentinel Mark I, the operator must interface with the *
 ## 05 | ENGINEERING LINEAGE
 This chip is the direct descendant of the **Project Citadel** FPGA prototyping performed on the **Xilinx RFSoC 4x2** and **PYNQ-Z2**. It translates the "Brain" of the S1-90 into a tangible, holdable asset.
 
+---
 
+## 06 | PDK PRIMITIVE MAPPING
+For accurate post-synthesis simulation and improved timing/area estimation, refer to the **PDK Primitive Mapping Guide**:
+* **Detailed Documentation:** [docs/pdk_primitive_mapping.md](docs/pdk_primitive_mapping.md)
+* **Quick Reference:** [docs/sg13g2_cell_reference.txt](docs/sg13g2_cell_reference.txt)
+* **Techmap File:** [src/techmap_citadel_sg13g2.v](src/techmap_citadel_sg13g2.v)
+
+These resources map our behavioral cells (from `src/cells.v`) to specific IHP SG13G2 standard cell instances, ensuring physical reality matches our logic intent.
+
+---
+
+## 06 | VERIFICATION & TELEMETRY ANALYSIS
+
+The Sentinel Mark I includes a comprehensive verification suite powered by Cocotb. The **Telemetry Analyzer** automates post-test analysis and mission debrief generation.
+
+### 🔬 Automated Mission Debrief
+
+After running the test suite, generate a comprehensive analysis report:
+
+```bash
+cd test && make -B  # Run verification suite
+cd ..
+python analyze_telemetry.py --output MISSION_DEBRIEF.md
+```
+
+**Features:**
+- 📊 Parse Cocotb test results (results.xml)
+- ⏱️ Extract failure timestamps from waveform files
+- 📝 Generate detailed Markdown reports
+- 🔍 Automatic README.md integration
+
+**Quick Start:**
+
+```bash
+# View report on console
+python analyze_telemetry.py
+
+# Save to file
+python analyze_telemetry.py --output debrief.md
+
+# Update README with results
+python analyze_telemetry.py --update-readme
+```
+
+For complete documentation, see: [**docs/TELEMETRY_ANALYZER.md**](docs/TELEMETRY_ANALYZER.md)
 
 ---
 **VAELIX SYSTEMS** *Tier 1 Defense Technology.* © 2026 Vaelix Systems. All Rights Reserved.
