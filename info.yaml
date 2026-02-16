@@ -22,6 +22,7 @@ project:
   source_files:
     - tt_um_vaelix_sentinel.v
     - cells.v
+    - project.v
 
   # Footprint: Standard 1x1 Tile for High-Yield Fabrication
   tiles: "1x1"

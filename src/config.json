@@ -51,5 +51,12 @@
   "MAGIC_DEF_LABELS": 0,
   "MAGIC_WRITE_LEF_PINONLY": 1,
   "RUN_KLAYOUT_XOR": 0,
-  "RUN_KLAYOUT_DRC": 0
+  "RUN_KLAYOUT_DRC": 0,
+
+  "//": "TARNOVSKY SHUFFLE: Register Scattering Strategy",
+  "//": "Custom placement hints via TCL for physical layout obfuscation",
+  "//": "See placement_strategy_notes.tcl for implementation details",
+  "//": "Note: Standard cells use placer hints, not absolute coordinates",
+  "PL_RESIZER_DESIGN_OPTIMIZATIONS": 1,
+  "PL_RESIZER_TIMING_OPTIMIZATIONS": 1
 }
