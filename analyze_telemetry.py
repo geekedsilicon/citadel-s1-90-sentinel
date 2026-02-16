@@ -14,7 +14,7 @@ import argparse
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional, Tuple
 import sys
 
@@ -154,7 +154,7 @@ class TelemetryAnalyzer:
 
     def generate_markdown_report(self) -> str:
         """Generate a Markdown-formatted summary report."""
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         report_lines = [
             "# 🔍 MISSION DEBRIEF — SENTINEL INTERROGATION REPORT",
