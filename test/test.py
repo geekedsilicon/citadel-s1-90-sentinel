@@ -1457,6 +1457,75 @@ if COCOTB_AVAILABLE:
         assert errs == 0, f"TRANSITION FAILURE: {errs} bad transitions"
         dut._log.info(f"  [PASS] All {len(transitions)} transitions clean")
         dut._log.info("TEST 15: COMPLETE")
+    # ================================================================
+    # COCOTB TEST 16: OUTPUT INTEGRITY MONITORING (HUANG LOOPBACK)
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_drive_fight_detection(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 16: DRIVE-FIGHT DETECTION (Huang Loopback)")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Phase 1: Normal operation - verify system works
+        dut._log.info("  Phase 1: Normal Operation")
+        dut.ui_in.value = VAELIX_KEY
+        dut.uio_in.value = 0xFF  # Loopback matches driven value
+        await ClockCycles(dut.clk, 2)
+        seg = int(dut.uo_out.value)
+        glow = int(dut.uio_out.value)
+        assert seg == SEG_VERIFIED, f"Auth should work: seg={hex(seg)}"
+        assert glow == GLOW_ACTIVE, f"Glow should be active: glow={hex(glow)}"
+        dut._log.info(f"    [PASS] Normal auth: VERIFIED + GLOW")
+
+        # Phase 2: Simulate 1 clock cycle mismatch (should not trigger tamper)
+        dut._log.info("  Phase 2: Single-Cycle Drive Fight (Should NOT trigger)")
+        dut.uio_in.value = 0x00  # Attacker forces LOW (mismatch for 1 cycle)
+        await ClockCycles(dut.clk, 1)
+        dut.uio_in.value = 0xFF  # Return to normal
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        # System should still be authorized (tamper needs 2+ cycles)
+        assert seg == SEG_VERIFIED, f"Single-cycle mismatch should NOT trigger tamper: seg={hex(seg)}"
+        dut._log.info(f"    [PASS] 1-cycle mismatch ignored")
+
+        # Phase 3: Simulate 2+ clock cycle mismatch (SHOULD trigger tamper)
+        dut._log.info("  Phase 3: Sustained Drive Fight (2+ cycles → TAMPER)")
+        dut.uio_in.value = 0x00  # Attacker forces LOW continuously
+        await ClockCycles(dut.clk, 1)  # Counter = 1
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"    After 1 cycle: seg={hex(seg)}")
+        
+        await ClockCycles(dut.clk, 1)  # Counter = 2, tamper triggers
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"    After 2 cycles: seg={hex(seg)}")
+        
+        # Tamper should have erased key_register, forcing LOCKED state
+        assert seg == SEG_LOCKED, f"Drive fight for 2+ cycles should erase key: seg={hex(seg)}"
+        dut._log.info(f"    [PASS] Drive fight detected, key erased → LOCKED")
+
+        # Phase 4: Verify key cannot be re-entered while drive fight persists
+        dut._log.info("  Phase 4: Key Re-entry During Active Tamper")
+        dut.ui_in.value = VAELIX_KEY
+        dut.uio_in.value = 0x00  # Drive fight still active
+        await ClockCycles(dut.clk, 2)
+        seg = int(dut.uo_out.value)
+        # Should remain LOCKED because tamper is active
+        assert seg == SEG_LOCKED, f"System should remain locked during tamper: seg={hex(seg)}"
+        dut._log.info(f"    [PASS] Re-auth blocked during drive fight")
+
+        # Phase 5: Resolve drive fight and verify recovery
+        dut._log.info("  Phase 5: Drive Fight Resolution & Recovery")
+        dut.uio_in.value = 0xFF  # Attacker gives up, loopback restored
+        await ClockCycles(dut.clk, 2)
+        seg = int(dut.uo_out.value)
+        glow = int(dut.uio_out.value)
+        # With valid key and no drive fight, should authorize again
+        assert seg == SEG_VERIFIED, f"System should recover after drive fight ends: seg={hex(seg)}"
+        assert glow == GLOW_ACTIVE, f"Glow should be active: glow={hex(glow)}"
+        dut._log.info(f"    [PASS] System recovered: VERIFIED + GLOW")
+
+        dut._log.info("TEST 16: COMPLETE")
 
     # ================================================================
     # COCOTB TEST 16: RING OSCILLATOR - SILICON FINGERPRINT

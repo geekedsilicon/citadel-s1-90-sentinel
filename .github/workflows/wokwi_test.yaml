@@ -143,13 +143,30 @@ jobs:
         if: always() && steps.check_wokwi.outputs.has_wokwi == 'true' && steps.check_files.outputs.files_exists == 'true'
 
       # ------------------------------------------------------------------------
+      # STEP 5.5: GENERATE MISSION DEBRIEF
+      # Automated telemetry analysis and failure timestamp extraction
+      # ------------------------------------------------------------------------
+      - name: Generate Mission Debrief
+        if: always() && steps.check_wokwi.outputs.has_wokwi == 'true' && steps.check_files.outputs.files_exists == 'true'
+        run: |
+          python analyze_telemetry.py \
+            --results-xml test/results.xml \
+            --fst-file test/tb.fst \
+            --output MISSION_DEBRIEF.md
+          echo "✅ Mission debrief generated: MISSION_DEBRIEF.md"
+
+      # ------------------------------------------------------------------------
       # STEP 6: ARTIFACT UPLOAD
-      # VCD waveforms for post-run analysis in GTKWave or Surfer.
+      # VCD waveforms and mission debrief for post-run analysis
       # Only runs if tests were executed
       # ------------------------------------------------------------------------
-      - name: Upload vcd
+      - name: Upload test artifacts
         if: (success() || failure()) && steps.check_wokwi.outputs.has_wokwi == 'true' && steps.check_files.outputs.files_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: test-vcd
+          name: test-artifacts
           path: |
+            test/*.fst
+            test/*.vcd
+            test/results.xml
+            MISSION_DEBRIEF.md
