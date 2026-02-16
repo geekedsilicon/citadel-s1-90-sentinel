@@ -55,6 +55,9 @@ ARG TT_SUPPORT_TOOLS_BRANCH=tt10
 # curl explicitly installed for Verible download in Phase IV.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     iverilog          \
+    yosys             \
+    graphviz          \
+    xdot              \
     gtkwave           \
     python3           \
     python3-pip       \
