@@ -56,6 +56,8 @@ class SentinelModel:
         # Ring oscillator counter (simplified model)
         self.osc_counter = 0
         # Simulated oscillation frequency (60 MHz for IHP 130nm)
+        # This is a simulated value within expected range (50-70 MHz)
+        # Actual frequency can only be measured on real silicon
         self.osc_freq_mhz = 60  # Expected range: 50-70 MHz
 
     def evaluate(self, key_input, uio_input=0x00):
@@ -1511,6 +1513,7 @@ if COCOTB_AVAILABLE:
         # 40 us * 60 MHz = 2400 oscillations
         # But we're sampling edges on the system clock, so actual count depends on
         # how many edges we catch. We should see at least some counting.
+        # Mask to 8 bits since only lower 8 bits of 32-bit counter are output
         delta = (final_count - initial_count) & 0xFF
         dut._log.info(f"  Counter delta: {delta}")
         
