@@ -31,13 +31,23 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
-     * 1. AUTHORIZATION LOGIC
+     * 1. AUTHORIZATION LOGIC WITH KEY REGISTER
      * ---------------------------------------------------------------------
      * HARDCODED_KEY: 0xB6 (1011_0110)
      * Direct bitwise comparison for instantaneous verification.
+     * 
+     * KEY REGISTER: Stores authorization state. Can be erased by tamper detection.
+     * This register maintains the verified state across clock cycles and provides
+     * a target for tamper-triggered erasure (Huang Loopback requirement).
      */
+    wire key_match;
+    assign key_match = (ui_in == 8'b1011_0110);
+    
+    reg  key_register;
     wire is_authorized;
-    assign is_authorized = (ui_in == 8'b1011_0110);
+    
+    // Authorization requires both correct key AND untampered key register
+    assign is_authorized = key_match & key_register;
 
     /* ---------------------------------------------------------------------
      * 2. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
@@ -90,11 +100,69 @@ module tt_um_vaelix_sentinel (
     assign uio_oe  = 8'hFF;
 
     /* ---------------------------------------------------------------------
-     * 5. SYSTEM STUBS
+     * 5. OUTPUT INTEGRITY MONITORING (HUANG LOOPBACK)
+     * ---------------------------------------------------------------------
+     * Andrew "bunnie" Huang warns: external attackers may force output pins
+     * LOW even when we drive HIGH, to hide "Verified" status.
+     * 
+     * MECHANISM:
+     * - Even though uio_out drives as outputs, we read back via uio_in
+     * - Compare driven value (uio_out) with read-back value (uio_in)
+     * - If mismatch persists for 2+ clock cycles → DRIVE FIGHT detected
+     * - Assert TAMPER_DETECT to erase key_register
+     * 
+     * NOTE: uio_oe = 8'hFF means all UIO pins are outputs, but the GPIO
+     * cells (sg13g2_io) maintain input buffers (IB_MODE) allowing loopback.
+     */
+    reg [1:0] drive_fight_counter;
+    wire      drive_fight_detected;
+    wire      tamper_detect;
+    
+    // Detect mismatch between what we're driving and what we're reading
+    assign drive_fight_detected = (uio_out != uio_in);
+    
+    // Count consecutive mismatches
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            drive_fight_counter <= 2'b00;
+        end else if (drive_fight_detected) begin
+            // Increment counter if mismatch (saturate at 2'b11)
+            if (drive_fight_counter != 2'b11)
+                drive_fight_counter <= drive_fight_counter + 2'b01;
+        end else begin
+            // Reset counter if values match
+            drive_fight_counter <= 2'b00;
+        end
+    end
+    
+    // Tamper detected after 2 consecutive mismatches (counter reaches 2)
+    assign tamper_detect = (drive_fight_counter >= 2'b10);
+    
+    /* ---------------------------------------------------------------------
+     * 6. KEY REGISTER MANAGEMENT
+     * ---------------------------------------------------------------------
+     * The key register stores authorization state and can be erased on:
+     * - Reset (rst_n = 0)
+     * - Tamper detection (drive fight for 2+ cycles)
+     * - Loss of valid key input (automatic re-lock)
+     */
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            key_register <= 1'b1;  // Start in enabled state
+        end else if (tamper_detect) begin
+            key_register <= 1'b0;  // Erase on tamper
+        end else if (key_match) begin
+            key_register <= 1'b1;  // Set when correct key present
+        end else begin
+            key_register <= 1'b0;  // Clear when key removed
+        end
+    end
+    
+    /* ---------------------------------------------------------------------
+     * 7. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
-     * The trailing 1'b0 ensures the reduction is never optimised to a constant.
      */
-    wire _unused_signal = &{uio_in, clk, rst_n, 1'b0};
+    wire _unused_signal = &{1'b0};
 
 endmodule
