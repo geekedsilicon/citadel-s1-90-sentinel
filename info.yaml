@@ -17,6 +17,12 @@ project:
   language: "Verilog" # Custom Verilog project (not Wokwi)
   clock_hz: 25000000 # Optimized for Stability (25 MHz)
 
+  # Custom Verilog project configuration
+  top_module: "tt_um_vaelix_sentinel"
+  source_files:
+    - tt_um_vaelix_sentinel.v
+    - cells.v
+
   # Footprint: Standard 1x1 Tile for High-Yield Fabrication
   tiles: "1x1"
 
