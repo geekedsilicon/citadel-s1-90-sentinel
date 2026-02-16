@@ -1497,22 +1497,28 @@ if COCOTB_AVAILABLE:
         dut._log.info(f"  Initial counter: {hex(initial_count)}")
         
         # Let oscillator run for some time
-        await ClockCycles(dut.clk, 1000)
+        cycles_to_wait = 1000
+        await ClockCycles(dut.clk, cycles_to_wait)
         
         # Read final counter value
         final_count = int(dut.uio_out.value)
         dut._log.info(f"  Final counter: {hex(final_count)}")
         
         # Counter should have changed (oscillator is running)
-        # Note: In simulation with behavioral model, the exact frequency
-        # will depend on the simulator and delays, but counter should increment
+        # Calculate expected delta based on clock frequency
+        # At 25 MHz system clock (40ns period), 1000 cycles = 40 microseconds
+        # With a 60 MHz oscillator, we expect roughly:
+        # 40 us * 60 MHz = 2400 oscillations
+        # But we're sampling edges on the system clock, so actual count depends on
+        # how many edges we catch. We should see at least some counting.
         delta = (final_count - initial_count) & 0xFF
         dut._log.info(f"  Counter delta: {delta}")
         
         # Verify counter is incrementing
-        # In RTL simulation, this will oscillate but exact frequency depends on simulator
-        # For now, just verify the counter is accessible
-        dut._log.info(f"  [PASS] Oscillator counter accessible via uio_out")
+        # In RTL simulation with behavioral model, exact frequency varies,
+        # but counter should increment significantly over 1000 system clock cycles
+        assert delta > 0, f"Counter did not increment (delta={delta})"
+        dut._log.info(f"  [PASS] Counter incremented by {delta} in {cycles_to_wait} clock cycles")
         
         # Phase 3: Validate frequency range (this is a placeholder in simulation)
         dut._log.info("  Phase 3: Frequency validation")

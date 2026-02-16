@@ -30,6 +30,9 @@ module ring_oscillator (
 );
 
     // Ring oscillator chain - 31 inverters
+    // NOTE: This is intentionally a combinational feedback loop (ring oscillator)
+    // The loop creates oscillation - this is the desired behavior
+    // Simulators may warn about combinational loops - this is expected
     wire [30:0] ring_chain;
     
     // For simulation, use behavioral inverters
@@ -123,6 +126,8 @@ module ring_oscillator (
     assign osc_edge = osc_out & ~osc_prev;
 
     // Counter - counts oscillations when enabled
+    // 32-bit counter provides long-term measurement capability
+    // Only lower 8 bits are exposed via output port for compatibility with 8-bit interface
     reg [31:0] counter;
     
     // Counter logic - increment on oscillator edges when enabled
