@@ -306,6 +306,266 @@ async def test_sentinel_rapid_cycling(dut):
     dut._log.info(f"  [PASS] {CYCLES} valid/invalid cycles — zero errors, zero latching")
     dut._log.info("VAELIX SENTINEL | TEST 6: COMPLETE — COMBINATIONAL INTEGRITY CONFIRMED")
 
+# ============================================================================
+# TEST 7: HAMMING-2 PERIMETER — DOUBLE-BIT MUTATION ATTACK
+# ============================================================================
+@cocotb.test()
+async def test_sentinel_hamming2_attack(dut):
+    """
+    Tests every possible 2-bit mutation of the Vaelix Key (0xB6).
+    There are C(8,2) = 28 Hamming-distance-2 neighbors.
+    Every single one must be rejected. If any pass, the comparator
+    mesh has a structural deficiency — a collapsed or shorted gate.
+    """
+    dut._log.info("VAELIX SENTINEL | TEST 7: HAMMING-2 DOUBLE-BIT ATTACK")
+
+    clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    await reset_sentinel(dut)
+
+    deflected = 0
+
+    for bit_a in range(8):
+        for bit_b in range(bit_a + 1, 8):
+            mutant_key = VAELIX_KEY ^ (1 << bit_a) ^ (1 << bit_b)
+            dut.ui_in.value = mutant_key
+            await ClockCycles(dut.clk, 1)
+
+            seg_val  = int(dut.uo_out.value)
+            glow_val = int(dut.uio_out.value)
+
+            assert seg_val == SEG_LOCKED, \
+                f"H2 BREACH: bits [{bit_a},{bit_b}] flip ({hex(mutant_key)}) unlocked! Got {hex(seg_val)}"
+            assert glow_val == GLOW_DORMANT, \
+                f"H2 GLOW LEAK: bits [{bit_a},{bit_b}] flip ({hex(mutant_key)}) lit Glow! Got {hex(glow_val)}"
+            deflected += 1
+
+    assert deflected == 28, \
+        f"COVERAGE GAP: Expected 28 H2 mutations, tested {deflected}"
+
+    dut._log.info(f"  [PASS] All 28 Hamming-2 mutations DEFLECTED")
+    dut._log.info("VAELIX SENTINEL | TEST 7: COMPLETE — DOUBLE-BIT PERIMETER SEALED")
+
+
+# ============================================================================
+# TEST 8: WALKING ONES / WALKING ZEROS — BUS INTEGRITY SCAN
+# ============================================================================
+@cocotb.test()
+async def test_sentinel_walking_bus_scan(dut):
+    """
+    Injects walking-1 and walking-0 patterns across the 8-bit input bus.
+    None of these patterns match 0xB6, so every single one must produce
+    LOCKED state. This catches stuck-at faults on individual input lines
+    and verifies that no single-hot or single-cold vector fools the mesh.
+    """
+    dut._log.info("VAELIX SENTINEL | TEST 8: WALKING ONES / WALKING ZEROS")
+
+    clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    await reset_sentinel(dut)
+
+    scan_count = 0
+
+    # --- Walking Ones: 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 ---
+    for bit in range(8):
+        pattern = 1 << bit
+        dut.ui_in.value = pattern
+        await ClockCycles(dut.clk, 1)
+
+        seg_val = int(dut.uo_out.value)
+        assert seg_val == SEG_LOCKED, \
+            f"WALKING-1 BREACH at bit {bit} ({hex(pattern)}): Got {hex(seg_val)}"
+        scan_count += 1
+
+    dut._log.info(f"  [PASS] Walking-1 scan: 8/8 patterns LOCKED")
+
+    # --- Walking Zeros: 0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF, 0x7F ---
+    for bit in range(8):
+        pattern = 0xFF ^ (1 << bit)
+        dut.ui_in.value = pattern
+        await ClockCycles(dut.clk, 1)
+
+        seg_val = int(dut.uo_out.value)
+        assert seg_val == SEG_LOCKED, \
+            f"WALKING-0 BREACH at bit {bit} ({hex(pattern)}): Got {hex(seg_val)}"
+        scan_count += 1
+
+    dut._log.info(f"  [PASS] Walking-0 scan: 8/8 patterns LOCKED")
+
+    # --- Boundary sentinels: 0x00 and 0xFF ---
+    for boundary in [0x00, 0xFF]:
+        dut.ui_in.value = boundary
+        await ClockCycles(dut.clk, 1)
+
+        seg_val = int(dut.uo_out.value)
+        assert seg_val == SEG_LOCKED, \
+            f"BOUNDARY BREACH at {hex(boundary)}: Got {hex(seg_val)}"
+        scan_count += 1
+
+    dut._log.info(f"  [PASS] Boundary scan: 0x00 and 0xFF LOCKED")
+    dut._log.info(f"  Total patterns scanned: {scan_count}")
+    dut._log.info("VAELIX SENTINEL | TEST 8: COMPLETE — BUS INTEGRITY CONFIRMED")
+
+
+# ============================================================================
+# TEST 9: SEGMENT ENCODING FIDELITY — DISPLAY TRUTH TABLE
+# ============================================================================
+@cocotb.test()
+async def test_sentinel_segment_encoding(dut):
+    """
+    Validates the exact bit pattern on every segment pin for both
+    LOCKED and VERIFIED states. This is not just "did the right value
+    appear" — it's a pin-by-pin dissection of the 7-segment encoding.
+
+    Active-LOW Common Anode truth table:
+      Segment:    DP  G  F  E  D  C  B  A
+      Bit index:   7  6  5  4  3  2  1  0
+
+      'L' (Locked):    DP=1 G=1 F=0 E=0 D=0 C=1 B=1 A=1 = 0xC7
+      'U' (Verified):  DP=1 G=1 F=0 E=0 D=0 C=0 B=0 A=1 = 0xC1
+
+    Difference is segments B and C (bits 1 and 2):
+      Locked:   B=1 (OFF), C=1 (OFF)
+      Verified: B=0 (ON),  C=0 (ON)
+    """
+    dut._log.info("VAELIX SENTINEL | TEST 9: SEGMENT ENCODING FIDELITY")
+
+    clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    await reset_sentinel(dut)
+
+    # Segment name map for readable diagnostics
+    SEG_NAMES = ["A", "B", "C", "D", "E", "F", "G", "DP"]
+
+    # --- Phase 1: LOCKED state pin-by-pin ---
+    dut.ui_in.value = 0x00
+    await ClockCycles(dut.clk, 1)
+    locked_bits = int(dut.uo_out.value)
+
+    #                  A  B  C  D  E  F  G  DP
+    expected_locked = [1, 1, 1, 0, 0, 0, 1, 1]  # 0xC7
+
+    for i, (expected, name) in enumerate(zip(expected_locked, SEG_NAMES)):
+        actual = (locked_bits >> i) & 1
+        assert actual == expected, \
+            f"LOCKED SEG_{name} (bit {i}): Expected {expected}, got {actual}. Full: {hex(locked_bits)}"
+        state_str = "OFF" if expected == 1 else "ON"
+        dut._log.info(f"  SEG_{name}: {state_str} (bit={actual}) [CORRECT]")
+
+    dut._log.info(f"  [PASS] LOCKED encoding: {hex(locked_bits)} == 0xC7")
+
+    # --- Phase 2: VERIFIED state pin-by-pin ---
+    dut.ui_in.value = VAELIX_KEY
+    await ClockCycles(dut.clk, 1)
+    verified_bits = int(dut.uo_out.value)
+
+    #                    A  B  C  D  E  F  G  DP
+    expected_verified = [1, 0, 0, 0, 0, 0, 1, 1]  # 0xC1
+
+    for i, (expected, name) in enumerate(zip(expected_verified, SEG_NAMES)):
+        actual = (verified_bits >> i) & 1
+        assert actual == expected, \
+            f"VERIFIED SEG_{name} (bit {i}): Expected {expected}, got {actual}. Full: {hex(verified_bits)}"
+        state_str = "OFF" if expected == 1 else "ON"
+        dut._log.info(f"  SEG_{name}: {state_str} (bit={actual}) [CORRECT]")
+
+    dut._log.info(f"  [PASS] VERIFIED encoding: {hex(verified_bits)} == 0xC1")
+
+    # --- Phase 3: Confirm only bits 1 and 2 differ ---
+    diff = locked_bits ^ verified_bits
+    assert diff == 0x06, \
+        f"ENCODING DRIFT: Expected diff 0x06 (bits B,C only), got {hex(diff)}"
+    dut._log.info(f"  [PASS] State transition delta: {hex(diff)} — only SEG_B and SEG_C toggle")
+
+    dut._log.info("VAELIX SENTINEL | TEST 9: COMPLETE — SEGMENT ENCODING BIT-PERFECT")
+
+
+# ============================================================================
+# TEST 10: BYTE COMPLEMENT REJECTION — MIRROR & TRANSFORM ATTACK
+# ============================================================================
+@cocotb.test()
+async def test_sentinel_complement_rejection(dut):
+    """
+    The bitwise complement of 0xB6 is 0x49. An attacker who intercepts
+    the key and inverts it (cable swap, level-shifter inversion, probe
+    reflection) would present the mirror image. This test ensures that
+    0x49 is rejected, along with every other bitwise transformation
+    of the valid key: complement, nibble-swap, byte-reverse, and
+    rotations.
+    """
+    dut._log.info("VAELIX SENTINEL | TEST 10: BYTE COMPLEMENT & TRANSFORM REJECTION")
+
+    clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    await reset_sentinel(dut)
+
+    def rotate_left_8(val, n):
+        """8-bit circular left rotation."""
+        return ((val << n) | (val >> (8 - n))) & 0xFF
+
+    def rotate_right_8(val, n):
+        """8-bit circular right rotation."""
+        return ((val >> n) | (val << (8 - n))) & 0xFF
+
+    def reverse_bits_8(val):
+        """Reverse all 8 bits."""
+        result = 0
+        for i in range(8):
+            result |= ((val >> i) & 1) << (7 - i)
+        return result
+
+    def swap_nibbles(val):
+        """Swap upper and lower nibbles."""
+        return ((val & 0x0F) << 4) | ((val & 0xF0) >> 4)
+
+    # Build the attack dictionary
+    transforms = {
+        "COMPLEMENT (~0xB6)":        (~VAELIX_KEY) & 0xFF,
+        "NIBBLE SWAP":               swap_nibbles(VAELIX_KEY),
+        "ROTATE LEFT 1":             rotate_left_8(VAELIX_KEY, 1),
+        "ROTATE LEFT 2":             rotate_left_8(VAELIX_KEY, 2),
+        "ROTATE LEFT 4":             rotate_left_8(VAELIX_KEY, 4),
+        "ROTATE RIGHT 1":            rotate_right_8(VAELIX_KEY, 1),
+        "ROTATE RIGHT 2":            rotate_right_8(VAELIX_KEY, 2),
+        "BIT REVERSE":               reverse_bits_8(VAELIX_KEY),
+        "XOR 0xAA (ALT MASK)":       VAELIX_KEY ^ 0xAA,
+        "XOR 0x55 (ALT MASK PH2)":   VAELIX_KEY ^ 0x55,
+        "XOR 0x0F (NIBBLE MASK)":     VAELIX_KEY ^ 0x0F,
+        "XOR 0xF0 (UPPER MASK)":      VAELIX_KEY ^ 0xF0,
+    }
+
+    deflected = 0
+
+    for name, attack_key in transforms.items():
+        # Skip if a transform accidentally produces the valid key
+        if attack_key == VAELIX_KEY:
+            dut._log.info(f"  [SKIP] {name} = {hex(attack_key)} (identity — not an attack)")
+            continue
+
+        dut.ui_in.value = attack_key
+        await ClockCycles(dut.clk, 1)
+
+        seg_val  = int(dut.uo_out.value)
+        glow_val = int(dut.uio_out.value)
+
+        assert seg_val == SEG_LOCKED, \
+            f"TRANSFORM BREACH [{name}]: {hex(attack_key)} unlocked! Got {hex(seg_val)}"
+        assert glow_val == GLOW_DORMANT, \
+            f"TRANSFORM GLOW [{name}]: {hex(attack_key)} lit Glow! Got {hex(glow_val)}"
+
+        dut._log.info(f"  [PASS] {name} ({hex(attack_key)}): DEFLECTED")
+        deflected += 1
+
+    dut._log.info(f"  Total transforms deflected: {deflected}")
+    dut._log.info("VAELIX SENTINEL | TEST 10: COMPLETE — ALL TRANSFORMS REJECTED")
+
+
+
+
 
 
 
