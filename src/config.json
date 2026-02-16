@@ -47,17 +47,10 @@
   "RUN_KLAYOUT_XOR": 0,
   "RUN_KLAYOUT_DRC": 0,
 
-  "//": "TARNOVSKY SHUFFLE: Register Scattering Placement Constraints",
-  "//": "Forces key storage registers to opposite corners of the die",
-  "//": "Format: 'instance_name x_coord y_coord'",
-  "PL_MACRO_PLACEMENT": [
-    "key_validator.sys_state_a 10 10",
-    "key_validator.timer_ref_b 100 10",
-    "key_validator.calib_val_c 10 100",
-    "key_validator.pwr_mon_d 100 100",
-    "key_validator.clk_div_e 50 10",
-    "key_validator.stat_flag_f 10 50",
-    "key_validator.mux_sel_g 100 50",
-    "key_validator.ena_ctrl_h 50 100"
-  ]
+  "//": "TARNOVSKY SHUFFLE: Register Scattering Strategy",
+  "//": "Custom placement hints via TCL for physical layout obfuscation",
+  "//": "See placement_constraints.tcl for implementation details",
+  "//": "Note: Standard cells use placer hints, not absolute coordinates",
+  "PL_RESIZER_DESIGN_OPTIMIZATIONS": 1,
+  "PL_RESIZER_TIMING_OPTIMIZATIONS": 1
 }
