@@ -2,9 +2,9 @@
 # VAELIX | PROJECT CITADEL — AUTOMATED VERIFICATION PROTOCOL
 # ============================================================================
 # FILE:      test/Makefile
-# VERSION:   1.2.0 — Citadel Standard
+# VERSION:   1.3.0 — Citadel Standard
 # TARGET:    Tiny Tapeout 06 (IHP 130nm SG13G2)
-# ENGINE:    Cocotb 2.0.1 + Icarus Verilog
+# ENGINE:    Cocotb 2.0.1 + Icarus Verilog / Verilator
 # PURPOSE:   RTL & Gate-Level Verification of the Sentinel Mark I
 # FIX LOG:
 #   v1.0.0 — Initial Makefile
@@ -12,6 +12,9 @@
 #   v1.1.0 — PROJECT_SOURCES corrected to tt_um_vaelix_sentinel.v
 #   v1.2.0 — [CRITICAL] Added cells.v to PROJECT_SOURCES (buffer_cell,
 #             and_cell, or_cell, etc. required by the Sentinel design)
+#   v1.3.0 — [CRITICAL] Added coverage analysis support (COVERAGE=1 flag)
+#             Requires Verilator 5.036+ for coverage collection
+#             Added coverage-report and check-coverage targets
 # ============================================================================
 
 # --- SIMULATION CONFIGURATION -----------------------------------------------
@@ -113,3 +116,33 @@ visualize:
 	yosys -p "read_verilog ../src/cells.v ../src/project.v; prep -top tt_um_vaelix_sentinel; write_json sentinel_schematic.json"
 	@echo "VAELIX: Schematic generated: test/sentinel_schematic.json"
 	@echo "VAELIX: Upload this file to https://digitaljs.tilk.eu/ to see the Gate."
+
+# ============================================================================
+# HELP & USAGE
+# ============================================================================
+
+.PHONY: coverage-help
+coverage-help:
+	@echo "================================================================================"
+	@echo "VAELIX | PROJECT CITADEL — Coverage Analysis Commands"
+	@echo "================================================================================"
+	@echo ""
+	@echo "Standard Testing:"
+	@echo "  make               - Run RTL tests with Icarus Verilog"
+	@echo "  make GATES=yes     - Run gate-level simulation"
+	@echo "  make clean         - Remove build artifacts"
+	@echo ""
+	@echo "Coverage Analysis (requires Verilator 5.036+):"
+	@echo "  make COVERAGE=1         - Run tests with coverage collection"
+	@echo "  make coverage-report    - Generate coverage.info from coverage.dat"
+	@echo "  make check-coverage     - Analyze coverage and enforce 100% requirement"
+	@echo ""
+	@echo "Full Coverage Workflow:"
+	@echo "  make COVERAGE=1 && make check-coverage"
+	@echo ""
+	@echo "Visualization:"
+	@echo "  make visualize     - Generate logic schematic (requires yosys)"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  See docs/COVERAGE.md for detailed coverage setup instructions"
+	@echo ""
