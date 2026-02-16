@@ -37,6 +37,25 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
+     * 1. FSM STATE DEFINITIONS (TASK XV: KINGPIN LATCH)
+     * ---------------------------------------------------------------------
+     * NORMAL: Standard operation (authorization checking)
+     * BRICK:  Tamper-detected state (system unresponsive)
+     */
+    localparam logic STATE_NORMAL = 1'b0;
+    localparam logic STATE_BRICK  = 1'b1;
+    
+    reg current_state;
+    reg [6:0] uio_in_prev;
+    
+    /* Initial values for simulation - reset logic ensures correct behavior */
+    initial begin
+        current_state = STATE_NORMAL;
+        uio_in_prev   = 7'h00;
+    end
+    
+    /* ---------------------------------------------------------------------
+     * 2. AUTHORIZATION LOGIC
      * 1. GERLINSKY GUARD: VOLTAGE GLITCH DETECTOR
      * ---------------------------------------------------------------------
      * The Gerlinsky Guard detects voltage glitches by monitoring propagation
@@ -75,6 +94,39 @@ module tt_um_vaelix_sentinel (
     assign is_authorized = key_match & key_register;
 
     /* ---------------------------------------------------------------------
+     * 3. TAMPER DETECTION & FSM (TASK XV: KINGPIN LATCH)
+     * ---------------------------------------------------------------------
+     * Monitor uio_in[7:1] for any toggle activity (potential debug probing).
+     * If detected during normal operation (rst_n active), transition to BRICK.
+     * Only ena toggle (power cycle) can exit BRICK state.
+     * 
+     * Note: Soft reset (rst_n) updates uio_in_prev to current value to prevent
+     * false tamper detection when pins are already non-zero during reset.
+     */
+    wire tamper_detected;
+    assign tamper_detected = (uio_in[7:1] != uio_in_prev) && rst_n;
+    
+    always @(posedge clk) begin
+        if (!ena) begin
+            // Power cycle reset: clear BRICK state
+            current_state <= STATE_NORMAL;
+            uio_in_prev   <= 7'h00;
+        end else if (!rst_n) begin
+            // Soft reset: update tracker to current value to avoid false tamper,
+            // but preserve BRICK state (only power cycle can exit BRICK)
+            uio_in_prev   <= uio_in[7:1];
+        end else begin
+            if (current_state == STATE_NORMAL && tamper_detected) begin
+                // Tamper detected: enter BRICK state
+                current_state <= STATE_BRICK;
+            end
+            // Update previous state tracker
+            uio_in_prev <= uio_in[7:1];
+        end
+    end
+
+    /* ---------------------------------------------------------------------
+     * 4. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
      * 3. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
      * 2. STATE MACHINE LOGIC
      * ---------------------------------------------------------------------
@@ -192,6 +244,7 @@ module tt_um_vaelix_sentinel (
     );
 
     /* ---------------------------------------------------------------------
+     * 5. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
      * 4. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
      * 6. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
      * ---------------------------------------------------------------------
@@ -203,6 +256,7 @@ module tt_um_vaelix_sentinel (
      * 'L' Locked    f, e, d           0xC7
      * 'U' Unlocked  f, e, d, c, b     0xC1   ('V' unsupported on 7-seg)
      * Disabled      none              0xFF
+     * BRICK         all dark          0x00   (All segments OFF)
      *
      * Fix: `wire x = const` replaced with localparam — correct construct
      * for synthesis constants. wire-with-init is valid in Yosys but is not
@@ -211,11 +265,18 @@ module tt_um_vaelix_sentinel (
     localparam logic [7:0] SegLocked   = 8'hC7;
     localparam logic [7:0] SegVerified = 8'hC1;
     localparam logic [7:0] SegOff      = 8'hFF;
+    localparam logic [7:0] SegBrick    = 8'h00;  // All Dark (BRICK state)
 
-    assign uo_out = internal_ena ? (is_authorized ? SegVerified : SegLocked)
-                                 : SegOff;
+    // In BRICK state, output is all dark (0x00), input logic disabled
+    // Otherwise, normal authorization logic applies
+    wire [7:0] normal_output;
+    assign normal_output = internal_ena ? (is_authorized ? SegVerified : SegLocked)
+                                        : SegOff;
+    
+    assign uo_out = (current_state == STATE_BRICK) ? SegBrick : normal_output;
 
     /* ---------------------------------------------------------------------
+     * 6. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * 5. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * 7. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * ---------------------------------------------------------------------
@@ -224,11 +285,27 @@ module tt_um_vaelix_sentinel (
      * When measuring oscillator (uio_in[0]=1), shows lower 8 bits of counter.
      * All UIO pins are forced to Output mode.
      *
+     * In BRICK state, the status array is also driven to 0x00 (all dark).
+     *
      * Fix: `&&` (logical AND) replaced with `&` (bitwise AND).
      * Both operators are functionally identical on 1-bit signals, but `&`
      * is the correct idiomatic operator for HDL gate-level logic and
      * avoids implicit boolean reduction of multi-bit types if ports change.
      */
+    wire [7:0] normal_glow;
+    assign normal_glow = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
+    
+    assign uio_out = (current_state == STATE_BRICK) ? 8'h00 : normal_glow;
+    assign uio_oe  = 8'hFF;
+
+    /* ---------------------------------------------------------------------
+     * 7. SYSTEM STUBS
+     * ---------------------------------------------------------------------
+     * Prevents DRC warnings for unreferenced ports during CI/CD.
+     * Note: uio_in is now actively monitored for tamper detection.
+     * The trailing 1'b0 ensures the reduction is never optimised to a constant.
+     */
+    wire _unused_signal = &{clk, rst_n, 1'b0};
     wire [7:0] glow_output;
     assign glow_output = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
     assign uio_out = uio_in[0] ? osc_count[7:0] : glow_output;
