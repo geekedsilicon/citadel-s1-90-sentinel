@@ -71,7 +71,7 @@ ifeq ($(COVERAGE),1)
     VERILATOR_MAJOR := $(shell echo $(VERILATOR_VERSION) | cut -d. -f1)
     VERILATOR_MINOR_RAW := $(shell echo $(VERILATOR_VERSION) | cut -d. -f2)
     # Force base-10 interpretation to avoid octal issues with leading zeros (e.g., 036)
-    VERILATOR_MINOR := $(shell echo $$((10\#$(VERILATOR_MINOR_RAW))) 2>/dev/null || echo 0)
+    VERILATOR_MINOR := $(shell echo $$((10#$(VERILATOR_MINOR_RAW))) 2>/dev/null || echo 0)
     
     # Check if Verilator meets minimum version (5.036)
     # Note: Verilator uses format 5.036, where minor version may have leading zeros

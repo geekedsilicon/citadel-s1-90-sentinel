@@ -153,8 +153,11 @@ class CoverageAnalyzer:
             missed_branches = []
             for line_num, branches in data['branches'].items():
                 for branch in branches:
-                    # Branch is missed if: '-' (not executed), '0' (not taken)
+                    # Branch is missed if:
+                    #   '-' = not executed (code path not reached)
+                    #   '0' = not taken (branch exists but this path was never followed)
                     # 'n/a' indicates not applicable and should not be counted as missed
+                    # For 100% coverage, we need all branches taken at least once
                     if branch['taken'] in ('-', '0'):
                         missed_branches.append({
                             'line': line_num,
