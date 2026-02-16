@@ -1392,6 +1392,18 @@ if COCOTB_AVAILABLE:
     # ================================================================
     @cocotb.test()
     async def test_sentinel_shadow_logic(dut):
+        """
+        Test 16: Shadow Logic Redundancy (Clock Glitch Defense)
+        
+        NOTE: This test verifies that both FSMs (main and shadow) remain
+        synchronized during normal operation. Actual clock glitch injection
+        would require specialized timing manipulation that is beyond the
+        scope of standard functional simulation.
+        
+        The hardware implementation uses posedge/negedge clocking to ensure
+        any clock glitch affecting one edge will cause detectable state
+        divergence and trigger the PANIC response.
+        """
         dut._log.info("VAELIX SENTINEL | TEST 16: NOHL SHADOW (Clock Glitch Defense)")
         clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
         cocotb.start_soon(clock.start())
@@ -1424,10 +1436,14 @@ if COCOTB_AVAILABLE:
         assert dut.panic.value == 0, "PANIC should not be asserted"
         dut._log.info("  [PASS] Both FSMs synchronized returning to LOCKED")
         
-        # Test 4: Verify output is high-Z when PANIC is asserted (manual injection)
-        dut._log.info("  [INFO] Shadow logic operates on dual clock edges")
-        dut._log.info("  [INFO] Main FSM: posedge clk, Shadow FSM: negedge clk")
-        dut._log.info("  [INFO] PANIC assertion requires clock glitch to desynchronize")
+        # Test 4: Verify architecture
+        dut._log.info("  [INFO] Shadow Logic Architecture:")
+        dut._log.info("    - Main FSM: posedge clk")
+        dut._log.info("    - Shadow FSM: negedge clk")
+        dut._log.info("    - Comparator: Checks state_main != state_shadow")
+        dut._log.info("    - PANIC: Locks high on mismatch, forces uo_out to High-Z")
+        dut._log.info("  [INFO] Clock glitch detection requires dual-edge timing")
+        dut._log.info("  [INFO] This test validates normal synchronized operation")
         
         dut._log.info("TEST 16: COMPLETE")
 
