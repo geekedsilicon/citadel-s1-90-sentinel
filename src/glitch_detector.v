@@ -9,12 +9,12 @@
  * DESCRIPTION:
  * Voltage glitch detector using a chain of asynchronous buffers. When a
  * voltage dip occurs (Chris Gerlinsky attack), the propagation delay changes
- * significantly, causing the XOR loop to spike high.
+ * significantly, causing the ring oscillator to behave anomalously.
  *
  * ARCHITECTURE:
  * - Chain of 10 sg13g2_buf_2 asynchronous buffers
- * - Combinatorial XOR loop: input XOR output of chain
- * - If propagation delay changes → XOR spikes → GLITCH_DETECTED goes high
+ * - Ring oscillator: output inverted and fed back to input
+ * - If propagation delay changes → oscillation frequency changes → detectable
  * ============================================================================
  */
 
@@ -28,9 +28,10 @@ module glitch_detector (
     // Chain of buffer signals: buf_chain[0] is input, buf_chain[10] is output
     wire [10:0] buf_chain;
     
-    // XOR the input with the output to create a combinatorial loop
-    // This is the "canary" - if voltage glitches change timing, XOR spikes
-    assign buf_chain[0] = buf_chain[10] ^ buf_chain[0];
+    // Create a ring oscillator with XOR feedback
+    // The XOR inverts when output differs from a reference, creating oscillation
+    // Under voltage glitch, timing changes cause detectable anomalies
+    assign buf_chain[0] = ~buf_chain[10];  // Inverter creates oscillation
     
     // Chain of 10 asynchronous buffers
     sg13g2_buf_2 buf_0 (.A(buf_chain[0]),  .X(buf_chain[1]));
@@ -44,9 +45,9 @@ module glitch_detector (
     sg13g2_buf_2 buf_8 (.A(buf_chain[8]),  .X(buf_chain[9]));
     sg13g2_buf_2 buf_9 (.A(buf_chain[9]),  .X(buf_chain[10]));
     
-    // Output the XOR result as glitch detection signal
-    // In normal operation, this oscillates. Under voltage glitch, timing changes
-    // cause detectable spikes that can trigger reset logic
+    // Output the oscillating signal as glitch detection signal
+    // In normal operation, this oscillates at a frequency determined by buffer delays
+    // Under voltage glitch, timing changes cause frequency shifts that trigger resets
     assign GLITCH_DETECTED = buf_chain[0];
 
 endmodule

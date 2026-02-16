@@ -111,8 +111,8 @@ module tt_um_vaelix_sentinel (
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
      * The trailing 1'b0 ensures the reduction is never optimised to a constant.
-     * Note: internal_rst_n is used by glitch detector logic, rst_n is combined.
+     * Note: clk and rst_n are used; only uio_in is truly unused.
      */
-    wire _unused_signal = &{uio_in, clk, internal_rst_n, 1'b0};
+    wire _unused_signal = &{uio_in, 1'b0};
 
 endmodule
