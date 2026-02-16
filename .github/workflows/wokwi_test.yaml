@@ -39,7 +39,6 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-
       # ------------------------------------------------------------------------
       # STEP 1: SOURCE ACQUISITION
       # ------------------------------------------------------------------------
@@ -65,7 +64,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Python packages
         shell: bash
@@ -74,9 +73,27 @@ jobs:
           pip install -r tt/requirements.txt
 
       # ------------------------------------------------------------------------
+      # STEP 2.5: CHECK IF WOKWI PROJECT EXISTS
+      # Skip Wokwi-dependent steps if wokwi_id is 0 (custom Verilog project)
+      # ------------------------------------------------------------------------
+      - name: Check Wokwi project ID
+        id: check_wokwi
+        run: |
+          WOKWI_ID=$(grep -E '^  wokwi_id:' info.yaml | awk '{print $2}' | tr -d ' ')
+          echo "wokwi_id=$WOKWI_ID"
+          if [ "$WOKWI_ID" = "0" ]; then
+            echo "has_wokwi=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Wokwi ID is 0 - skipping Wokwi-dependent steps (custom Verilog project)"
+          else
+            echo "has_wokwi=true" >> $GITHUB_OUTPUT
+            echo "✓ Wokwi ID found: $WOKWI_ID"
+          fi
+
+      # ------------------------------------------------------------------------
       # STEP 3: TRUTH TABLE ACQUISITION
       # ------------------------------------------------------------------------
       - name: Fetch the truth table
+        if: steps.check_wokwi.outputs.has_wokwi == 'true'
         # Fetches live logic definitions from the Wokwi Project ID
         # defined in info.yaml. Generates test/truthtable.md if found.
         run: ./tt/tt_tool.py --create-user-config
