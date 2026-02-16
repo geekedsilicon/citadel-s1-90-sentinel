@@ -31,13 +31,82 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
-     * 1. AUTHORIZATION LOGIC
+     * 1. AUTHORIZATION LOGIC — STRUCTURAL IMPLEMENTATION
      * ---------------------------------------------------------------------
      * HARDCODED_KEY: 0xB6 (1011_0110)
-     * Direct bitwise comparison for instantaneous verification.
+     * 
+     * ARCHITECTURE:
+     * This Key Comparator is implemented using explicit IHP SG13G2 standard
+     * cells to enable precise control over physical placement and routing.
+     * 
+     * STAGE 1: Bit-level Equality (8x sg13g2_xnor2_1)
+     *   - Each XNOR gate compares one bit of ui_in[7:0] against the
+     *     corresponding bit of the hardcoded key 0xB6.
+     *   - XNOR output is HIGH (1) when bits match, LOW (0) on mismatch.
+     *   - Standard drive strength (_1) chosen for internal nodes to minimize
+     *     power consumption and reduce parasitic capacitance.
+     * 
+     * STAGE 2: Hierarchical Reduction Tree (2x sg13g2_and4_1)
+     *   - First level:  Combines bits [3:0] and [7:4] separately (2 AND4 gates)
+     *   - Second level: Final AND of the two intermediate results
+     *   - Result is HIGH only when ALL 8 bits match (is_authorized = 1)
+     * 
+     * RATIONALE FOR IHP PRIMITIVES:
+     *   - sg13g2_xnor2_1: Optimal for bit equality checking (single gate vs.
+     *     XOR + inverter). Lower drive strength (_1 suffix) reduces internal
+     *     node power draw since these signals don't drive heavy loads.
+     *   - sg13g2_and4_1: Efficient 4-input reduction. Using 4-input gates
+     *     instead of cascaded 2-input gates reduces stage count and improves
+     *     timing while maintaining compact layout.
      */
+    
+    // HARDCODED_KEY bits for comparison: 0xB6 = 1011_0110
+    localparam [7:0] VAELIX_KEY = 8'b1011_0110;
+    
+    // Stage 1: Bit-level equality checking (8 XNOR gates)
+    // Each comparator output is HIGH when corresponding bits match
+    wire cmp_bit0, cmp_bit1, cmp_bit2, cmp_bit3;
+    wire cmp_bit4, cmp_bit5, cmp_bit6, cmp_bit7;
+    
+    sg13g2_xnor2_1 xnor_bit0 (.A(ui_in[0]), .B(VAELIX_KEY[0]), .X(cmp_bit0));
+    sg13g2_xnor2_1 xnor_bit1 (.A(ui_in[1]), .B(VAELIX_KEY[1]), .X(cmp_bit1));
+    sg13g2_xnor2_1 xnor_bit2 (.A(ui_in[2]), .B(VAELIX_KEY[2]), .X(cmp_bit2));
+    sg13g2_xnor2_1 xnor_bit3 (.A(ui_in[3]), .B(VAELIX_KEY[3]), .X(cmp_bit3));
+    sg13g2_xnor2_1 xnor_bit4 (.A(ui_in[4]), .B(VAELIX_KEY[4]), .X(cmp_bit4));
+    sg13g2_xnor2_1 xnor_bit5 (.A(ui_in[5]), .B(VAELIX_KEY[5]), .X(cmp_bit5));
+    sg13g2_xnor2_1 xnor_bit6 (.A(ui_in[6]), .B(VAELIX_KEY[6]), .X(cmp_bit6));
+    sg13g2_xnor2_1 xnor_bit7 (.A(ui_in[7]), .B(VAELIX_KEY[7]), .X(cmp_bit7));
+    
+    // Stage 2: Hierarchical AND reduction tree
+    // Intermediate signals from first level of 4-input ANDs
+    wire match_lower;  // Result of AND(cmp_bit[3:0])
+    wire match_upper;  // Result of AND(cmp_bit[7:4])
+    
+    // First level: Combine lower and upper nibbles separately
+    sg13g2_and4_1 and4_lower (
+        .A(cmp_bit0), 
+        .B(cmp_bit1), 
+        .C(cmp_bit2), 
+        .D(cmp_bit3), 
+        .X(match_lower)
+    );
+    
+    sg13g2_and4_1 and4_upper (
+        .A(cmp_bit4), 
+        .B(cmp_bit5), 
+        .C(cmp_bit6), 
+        .D(cmp_bit7), 
+        .X(match_upper)
+    );
+    
+    // Second level: Final authorization signal (AND of both nibble matches)
+    // Note: Using standard 2-input AND from existing Citadel cells for final stage
     wire is_authorized;
-    assign is_authorized = (ui_in == 8'b1011_0110);
+    and_cell final_and (
+        .a(match_lower),
+        .b(match_upper),
+        .out(is_authorized)
+    );
 
     /* ---------------------------------------------------------------------
      * 2. SIGNAL INTEGRITY & OPTIMIZATION BYPASS

@@ -174,3 +174,33 @@ module dffsr_cell (
             q <= d;
     end
 endmodule
+
+/* ---------------------------------------------------------------------
+ * 3. IHP SG13G2 STANDARD CELL PRIMITIVES
+ * --------------------------------------------------------------------- */
+
+// IHP_XNOR2: 2-input XNOR gate (Behavioral model for RTL simulation)
+// Physical Implementation: sg13g2_xnor2_1 (Standard drive strength)
+// Purpose: Bit-level equality comparison in the Key Comparator
+(* keep_hierarchy *)
+module sg13g2_xnor2_1 (
+    input  wire A,
+    input  wire B,
+    output wire X
+);
+    assign X = ~(A ^ B);
+endmodule
+
+// IHP_AND4: 4-input AND gate (Behavioral model for RTL simulation)
+// Physical Implementation: sg13g2_and4_1 (Standard drive strength)
+// Purpose: Combining multiple comparison results in hierarchical reduction tree
+(* keep_hierarchy *)
+module sg13g2_and4_1 (
+    input  wire A,
+    input  wire B,
+    input  wire C,
+    input  wire D,
+    output wire X
+);
+    assign X = A & B & C & D;
+endmodule
