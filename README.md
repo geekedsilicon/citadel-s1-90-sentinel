@@ -60,7 +60,49 @@ To verify custody of the Sentinel Mark I, the operator must interface with the *
 ## 05 | ENGINEERING LINEAGE
 This chip is the direct descendant of the **Project Citadel** FPGA prototyping performed on the **Xilinx RFSoC 4x2** and **PYNQ-Z2**. It translates the "Brain" of the S1-90 into a tangible, holdable asset.
 
+---
 
+## 06 | VERIFICATION & COVERAGE
+**"Test the Happy Path. Test the Impossible Path."**
+
+The Sentinel Mark I enforces the **Vaelix Verification Standard**: 100% code coverage is mandatory. Every line of Verilog must be executed, every branch exercised.
+
+### **The Inspector (Coverage Analysis)**
+
+```bash
+cd test
+make COVERAGE=1        # Run tests with coverage collection
+make check-coverage    # Enforce 100% coverage requirement
+```
+
+The Inspector parses coverage data and exits with status code 1 if line or branch coverage is below 100%. No code path may remain untested on a core this critical.
+
+**Requirements:**
+* Verilator 5.036+ (for coverage collection)
+* Cocotb 2.0.1+ (test framework)
+
+See [`docs/COVERAGE.md`](docs/COVERAGE.md) for detailed setup instructions.
+
+---
+
+## 07 | TESTING
+
+Run the comprehensive test suite:
+
+```bash
+cd test
+pip install -r requirements.txt
+make                   # Run with Icarus Verilog
+make GATES=yes         # Run gate-level simulation
+```
+
+The test suite includes 15 verification scenarios covering:
+* Authorization sequences
+* Brute-force key sweeps
+* Reset behavior
+* Hamming distance attacks
+* Signal integrity checks
+* Rapid cycling stress tests
 
 ---
 **VAELIX SYSTEMS** *Tier 1 Defense Technology.* © 2026 Vaelix Systems. All Rights Reserved.
