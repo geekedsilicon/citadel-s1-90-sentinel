@@ -44,6 +44,14 @@ module tt_um_vaelix_sentinel (
      * - VERIFIED  = 8'b0101_1010 (0x5A) — Authenticated, access granted
      * - HARD_LOCK = 8'b0000_0000 (0x00) — Fault detected, power cycle required
      * 
+     * HARD_LOCK Encoding Rationale:
+     * 0x00 was chosen for HARD_LOCK because:
+     * 1. It's the power-on/default value for many FPGAs/ASICs (safest)
+     * 2. Represents "no access" / "all off" semantically
+     * 3. Less susceptible to stuck-at-zero faults (already at zero)
+     * 4. Hamming distance of 4 from both valid states is sufficient
+     *    (any single-bit flip from valid states cannot reach HARD_LOCK)
+     * 
      * Hamming Distance Analysis:
      * - LOCKED ↔ VERIFIED:  8 bits differ (maximum protection)
      * - LOCKED ↔ HARD_LOCK: 4 bits differ
@@ -198,7 +206,10 @@ module tt_um_vaelix_sentinel (
      * 8. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
-     * The trailing 1'b0 ensures the reduction is never optimised to a constant.
+     * 
+     * The (* keep *) attribute ensures this wire is not optimized away.
+     * The pattern &{uio_in, 1'b0} uses the unused port uio_in to prevent
+     * warnings while the (* keep *) prevents constant propagation optimization.
      */
     (* keep *) wire _unused_signal = &{uio_in, 1'b0};
 

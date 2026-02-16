@@ -97,6 +97,9 @@ if grep -q "state_reg" synthesized.v; then
 else
     echo "⚠ WARNING: state_reg not found explicitly in netlist"
     echo "  Register may have been renamed or optimized away"
+    echo "  TIP: Check synthesis log for register naming patterns"
+    echo "  TIP: Search for 8-bit registers or DFF arrays in synthesized.v"
+    echo "  TIP: Look for signals containing 'state' in the netlist"
 fi
 
 # Check for DFF (D flip-flops) which should represent the state register
