@@ -1,16 +1,48 @@
+# ==============================================================================
+# VAELIX | SENTINEL MARK I — FPGA EMULATION BRIDGE
+# ==============================================================================
+# FILE:      .github/workflows/fpga.yaml
+# VERSION:   1.1.0 — Citadel Standard
+# TARGET:    Lattice iCE40UP5K (TT ASIC Sim Board)
+# REPO:      citadel-s1-90-sentinel
+#
+# PURPOSE:
+#   Generates an iCE40UP5K FPGA bitstream for hardware-in-the-loop
+#   validation of the S1-90 Sentinel logic before ASIC tape-out.
+#   If it synthesizes cleanly to iCE40, the RTL is structurally sound.
+#
+# TRIGGER:
+#   Manual dispatch only (workflow_dispatch).
+#   Push trigger is intentionally gated to 'branches: none' to prevent
+#   unnecessary bitstream builds on every commit.
+#   To enable push-triggered builds, remove or comment the branches line.
+#
+# FIX LOG:
+#   v1.1.0 — Added concurrency guard (cancels stale manual dispatch runs)
+#   v1.1.0 — Step names normalized to match cross-repo Citadel standard
+#   v1.1.0 — Restored original operational comment on branches: none
+#   v1.0.0 — Tag updated to ttihp26a (IHP26a shuttle target)
+# ==============================================================================
+
 name: fpga
 
 on:
   push:
-    # Comment out (or remove) the following line to run the FPGA workflow on every push:
+    # GATED: Remove the line below to run FPGA build on every push.
     branches: none
   workflow_dispatch:
+
+# Cancel any in-progress FPGA build when a newer dispatch is triggered.
+concurrency:
+  group: "fpga"
+  cancel-in-progress: true
 
 jobs:
   fpga:
     runs-on: ubuntu-24.04
+
     steps:
-      - name: checkout repo
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           submodules: recursive
