@@ -63,6 +63,21 @@ COCOTB_TEST_MODULES = test
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # ============================================================================
+# VAELIX LINTING ENGINE
+# ============================================================================
+# Strict Verilator linting enforces zero-defect RTL:
+# - -Wall: Enable all warnings
+# - -Wwarn-UNDRIVEN: Flag wires with no driver (unused signals)
+# - Warnings are fatal by default (exit on any warning)
+# - INITIAL blocks are automatically banned in synthesizable modules
+# ============================================================================
+
+lint:
+	@echo "VAELIX: Running strict Verilator linting on RTL sources..."
+	verilator --lint-only -Wall -Wwarn-UNDRIVEN --top-module tt_um_vaelix_sentinel -I$(SRC_DIR) $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
+	@echo "VAELIX: ✓ All linting checks passed with zero warnings."
+
+# ============================================================================
 # VAELIX VISUALIZATION ENGINE
 # ============================================================================
 

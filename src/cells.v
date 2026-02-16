@@ -14,9 +14,11 @@
  * LINTING & DIRECTIVES:
  * - `default_nettype none: Enforces explicit declaration of all nets.
  * - Bitwise Operators (~, &, |): Preferred for physical gate mapping.
+ * - DECLFILENAME disabled: This file intentionally contains multiple modules.
  * ============================================================================
  */
 
+/* verilator lint_off DECLFILENAME */
 `default_nettype none
 
 // CITADEL_CELLS: Mapping layer for Wokwi primitive modules to Vaelix-standard logic gates.
