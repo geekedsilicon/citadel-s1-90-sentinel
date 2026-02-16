@@ -22,7 +22,7 @@
   "//J": "Verilator: strict structural linting for zero-defect RTL.",
   "//K": "Include path resolves IHP SG13G2 PDK primitives — prevents false positives.",
   "//L": "Strict flags: -Wall (all warnings), -Wwarn-UNDRIVEN (detect unused signals).",
-  "//M": "Note: Warnings are fatal by default; initial blocks banned automatically.",
+  "//M": "Note: Verilator exits with error on any warning (use -Wno-fatal to disable).",
   "verilog.linting.linter": "verilator",
   "verilog.linting.verilator.arguments": "-Wall -Wwarn-UNDRIVEN --top-module tt_um_vaelix_sentinel -I${workspaceFolder}/src",
 

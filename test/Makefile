@@ -68,8 +68,8 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 # Strict Verilator linting enforces zero-defect RTL:
 # - -Wall: Enable all warnings
 # - -Wwarn-UNDRIVEN: Flag wires with no driver (unused signals)
-# - Warnings are fatal by default (exit on any warning)
-# - INITIAL blocks are automatically banned in synthesizable modules
+# - Verilator exits with error code 1 on any warning (use -Wno-fatal to disable)
+# - INITIAL blocks with non-blocking assignments trigger INITIALDLY warning
 # ============================================================================
 
 lint:
