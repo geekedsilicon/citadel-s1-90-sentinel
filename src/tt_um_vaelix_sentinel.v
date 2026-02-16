@@ -31,7 +31,18 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
-     * 1. AUTHORIZATION LOGIC
+     * 1. STATE MACHINE DEFINITIONS (SHADOW LOGIC REDUNDANCY)
+     * ---------------------------------------------------------------------
+     * FSM States for Clock Glitch Defense (Nohl Shadow)
+     */
+    localparam STATE_LOCKED   = 1'b0;
+    localparam STATE_UNLOCKED = 1'b1;
+    
+    reg state_main;
+    reg state_shadow;
+    
+    /* ---------------------------------------------------------------------
+     * 2. AUTHORIZATION LOGIC
      * ---------------------------------------------------------------------
      * HARDCODED_KEY: 0xB6 (1011_0110)
      * Direct bitwise comparison for instantaneous verification.
@@ -40,7 +51,57 @@ module tt_um_vaelix_sentinel (
     assign is_authorized = (ui_in == 8'b1011_0110);
 
     /* ---------------------------------------------------------------------
-     * 2. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
+     * 3. FSM_MAIN: Primary State Machine (posedge clk)
+     * ---------------------------------------------------------------------
+     * Transitions to UNLOCKED when correct key is presented
+     */
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state_main <= STATE_LOCKED;
+        end else if (internal_ena) begin
+            if (is_authorized) begin
+                state_main <= STATE_UNLOCKED;
+            end else begin
+                state_main <= STATE_LOCKED;
+            end
+        end
+    end
+    
+    /* ---------------------------------------------------------------------
+     * 4. FSM_SHADOW: Shadow State Machine (negedge clk)
+     * ---------------------------------------------------------------------
+     * Duplicate state machine clocked on falling edge for glitch detection
+     */
+    always @(negedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state_shadow <= STATE_LOCKED;
+        end else if (internal_ena) begin
+            if (is_authorized) begin
+                state_shadow <= STATE_UNLOCKED;
+            end else begin
+                state_shadow <= STATE_LOCKED;
+            end
+        end
+    end
+    
+    /* ---------------------------------------------------------------------
+     * 5. COMPARATOR & PANIC LOGIC
+     * ---------------------------------------------------------------------
+     * Detect state mismatch indicating clock glitch attack
+     */
+    reg panic;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            panic <= 1'b0;
+        end else begin
+            if (state_main != state_shadow) begin
+                panic <= 1'b1;  // LOCK IN PANIC STATE
+            end
+        end
+    end
+    
+    /* ---------------------------------------------------------------------
+     * 6. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
      * ---------------------------------------------------------------------
      * The 'buffer_cell' (defined in cells.v, compiled together by TT build)
      * is our structural signature. Gating outputs with 'internal_ena'
@@ -53,7 +114,7 @@ module tt_um_vaelix_sentinel (
     );
 
     /* ---------------------------------------------------------------------
-     * 3. VISUAL TELEMETRY: 7-SEGMENT OUTPUT
+     * 7. VISUAL TELEMETRY: 7-SEGMENT OUTPUT WITH TRI-STATE PANIC
      * ---------------------------------------------------------------------
      * Bit mapping: uo_out = { dp, g, f, e, d, c, b, a }  (a = bit 0)
      * Common Anode / Active LOW: a 0-bit drives a segment ON.
@@ -63,6 +124,7 @@ module tt_um_vaelix_sentinel (
      * 'L' Locked    f, e, d           0xC7
      * 'U' Unlocked  f, e, d, c, b     0xC1   ('V' unsupported on 7-seg)
      * Disabled      none              0xFF
+     * PANIC         High-Z            (driven by tri-state buffer)
      *
      * Fix: `wire x = const` replaced with localparam — correct construct
      * for synthesis constants. wire-with-init is valid in Yosys but is not
@@ -72,11 +134,15 @@ module tt_um_vaelix_sentinel (
     localparam logic [7:0] SegVerified = 8'hC1;
     localparam logic [7:0] SegOff      = 8'hFF;
 
-    assign uo_out = internal_ena ? (is_authorized ? SegVerified : SegLocked)
-                                 : SegOff;
+    wire [7:0] output_value;
+    assign output_value = internal_ena ? (state_main == STATE_UNLOCKED ? SegVerified : SegLocked)
+                                       : SegOff;
+    
+    // Tri-state output: High-Z when PANIC asserted
+    assign uo_out = panic ? 8'bZZZZZZZZ : output_value;
 
     /* ---------------------------------------------------------------------
-     * 4. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
+     * 8. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * ---------------------------------------------------------------------
      * Provides immediate high-intensity visual feedback upon authorization.
      * All UIO pins are forced to Output mode.
@@ -86,15 +152,15 @@ module tt_um_vaelix_sentinel (
      * is the correct idiomatic operator for HDL gate-level logic and
      * avoids implicit boolean reduction of multi-bit types if ports change.
      */
-    assign uio_out = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
+    assign uio_out = (internal_ena & (state_main == STATE_UNLOCKED)) ? 8'hFF : 8'h00;
     assign uio_oe  = 8'hFF;
 
     /* ---------------------------------------------------------------------
-     * 5. SYSTEM STUBS
+     * 9. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
      * The trailing 1'b0 ensures the reduction is never optimised to a constant.
      */
-    wire _unused_signal = &{uio_in, clk, rst_n, 1'b0};
+    wire _unused_signal = &{uio_in, 1'b0};
 
 endmodule
