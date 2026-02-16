@@ -1,0 +1,207 @@
+================================================================================
+IHP SG13G2 STANDARD CELL QUICK REFERENCE
+================================================================================
+Project: Citadel S1-90 Sentinel
+Target:  IHP 130nm SG13G2
+Purpose: Quick lookup for synthesis/mapping
+================================================================================
+
+BEHAVIORAL CELL -> SG13G2 PRIMITIVE MAPPING
+============================================
+
+1. BUFFER
+   Behavioral: buffer_cell(in, out)
+   SG13G2:     sg13g2_buf_1(A, X)      [1x drive]
+               sg13g2_buf_2(A, X)      [2x drive] <- RECOMMENDED
+               sg13g2_buf_4(A, X)      [4x drive]
+               sg13g2_buf_8(A, X)      [8x drive]
+               sg13g2_buf_16(A, X)     [16x drive]
+
+2. AND2
+   Behavioral: and_cell(a, b, out)
+   SG13G2:     sg13g2_and2_1(A, B, X)  [1x drive] <- RECOMMENDED
+               sg13g2_and2_2(A, B, X)  [2x drive]
+
+3. OR2
+   Behavioral: or_cell(a, b, out)
+   SG13G2:     sg13g2_or2_1(A, B, X)   [1x drive] <- RECOMMENDED
+               sg13g2_or2_2(A, B, X)   [2x drive]
+
+4. XOR2
+   Behavioral: xor_cell(a, b, out)
+   SG13G2:     sg13g2_xor2_1(A, B, X)  [1x only]  <- RECOMMENDED
+
+5. NAND2
+   Behavioral: nand_cell(a, b, out)
+   SG13G2:     sg13g2_nand2_1(A, B, Y) [1x drive] <- RECOMMENDED
+               sg13g2_nand2_2(A, B, Y) [2x drive]
+
+6. NOR2
+   Behavioral: nor_cell(a, b, out)
+   SG13G2:     sg13g2_nor2_1(A, B, Y)  [1x drive] <- RECOMMENDED
+               sg13g2_nor2_2(A, B, Y)  [2x drive]
+
+7. XNOR2
+   Behavioral: xnor_cell(a, b, out)
+   SG13G2:     sg13g2_xnor2_1(A, B, Y) [1x only]  <- RECOMMENDED
+
+8. INVERTER
+   Behavioral: not_cell(in, out)
+   SG13G2:     sg13g2_inv_1(A, Y)      [1x drive] <- RECOMMENDED
+               sg13g2_inv_2(A, Y)      [2x drive]
+               sg13g2_inv_4(A, Y)      [4x drive]
+               sg13g2_inv_8(A, Y)      [8x drive]
+               sg13g2_inv_16(A, Y)     [16x drive]
+
+9. MUX2
+   Behavioral: mux_cell(a, b, sel, out)  // out = sel ? b : a
+   SG13G2:     sg13g2_mux2_1(A0, A1, S, X) [1x] <- RECOMMENDED
+               sg13g2_mux2_2(A0, A1, S, X) [2x]
+   Note:       X = S ? A1 : A0
+               Map: A0=a, A1=b, S=sel
+
+10. DFF (Basic - No Reset)
+    Behavioral: dff_cell(clk, d, q, notq)
+    SG13G2:     sg13g2_dfrbp_1(D, CLK, RESET_B, Q, Q_N)
+                ** TIE RESET_B HIGH (1'b1) **
+    Alternative: sg13g2_dfrbpq_1(D, CLK, RESET_B, Q) [no Q_N]
+
+11. DFF with Reset
+    Behavioral: dffr_cell(clk, d, r, q, notq)  // r is active-high
+    SG13G2:     sg13g2_dfrbp_1(D, CLK, RESET_B, Q, Q_N) [1x]
+                sg13g2_dfrbp_2(D, CLK, RESET_B, Q, Q_N) [2x]
+    ** IMPORTANT: RESET_B is active-LOW, r is active-HIGH **
+    ** Map: RESET_B = ~r **
+
+12. DFF with Set and Reset
+    Behavioral: dffsr_cell(clk, d, s, r, q, notq)
+                // r, s are active-high; r has priority
+    SG13G2:     sg13g2_sdfbbp_1(D, SCD, SCE, CLK, RESET_B, SET_B, Q, Q_N)
+    Mapping:    D=d, CLK=clk
+                RESET_B=~r, SET_B=~s  (convert to active-low)
+                SCD=1'b0, SCE=1'b0    (disable scan)
+    Priority:   RESET > SET > DATA (matches behavioral)
+
+================================================================================
+
+IMPORTANT PORT NAME DIFFERENCES
+================================
+
+Behavioral  | SG13G2     | Notes
+------------|------------|--------------------------------------------------
+in/out      | A/X        | Buffers use A->X
+in/out      | A/Y        | Inverters use A->Y
+a,b/out     | A,B/X      | AND, OR, XOR use X for output
+a,b/out     | A,B/Y      | NAND, NOR, XNOR use Y for output
+a,b,sel/out | A0,A1,S/X  | MUX: X = S ? A1 : A0
+clk,d,q     | CLK,D,Q    | Flip-flops match behavioral
+r (reset)   | RESET_B    | Active-HIGH -> Active-LOW conversion needed
+s (set)     | SET_B      | Active-HIGH -> Active-LOW conversion needed
+notq        | Q_N        | Inverted output
+
+================================================================================
+
+DRIVE STRENGTH SELECTION GUIDE
+===============================
+
+Fanout      | Recommended Drive | Cell Suffix
+------------|-------------------|-------------
+1-3         | 1x                | _1
+4-8         | 2x                | _2
+9-15        | 4x                | _4
+16-30       | 8x                | _8
+31+         | 16x               | _16
+Clock/Reset | 8x or 16x         | _8, _16
+
+Special Cases:
+- Clock buffers: Use _8 or _16
+- Reset trees: Use _4 or _8
+- Output drivers: Size based on load
+- Internal logic: Start with _1, upsize if timing fails
+
+================================================================================
+
+SYNTHESIS TOOL CONSIDERATIONS
+==============================
+
+YOSYS/OpenLane:
+- Automatic mapping via synth command with -abc
+- Liberty files guide optimization
+- Default mapping usually optimal for area
+- Use cell_stats to review mapping
+
+Explicit Techmap (if needed):
+- Create techmap_citadel_sg13g2.v
+- Use (* techmap_celltype = "cell_name" *)
+- See pdk_primitive_mapping.md for examples
+
+================================================================================
+
+VERIFICATION SETUP
+==================
+
+Gate-Level Simulation:
+1. Include: $PDK_ROOT/ihp-sg13g2/libs.ref/sg13g2_stdcell/verilog/sg13g2_stdcell.v
+2. Defines: -DFUNCTIONAL -DGL_TEST -DSIM
+3. Test both RTL and gate-level with same testbench
+
+Timing Analysis:
+1. Liberty files: sg13g2_stdcell/liberty/*.lib
+2. Multiple corners: typical, fast, slow
+3. Voltage/temperature variations per IHP specs
+
+================================================================================
+
+ADVANCED OPTIMIZATION OPPORTUNITIES
+====================================
+
+Multi-Input Gates (Synthesis optimization):
+- sg13g2_and3_1, sg13g2_and4_1  (3 & 4-input AND)
+- sg13g2_or3_1, sg13g2_or4_1    (3 & 4-input OR)
+- sg13g2_nand3_1, sg13g2_nand4_1
+- sg13g2_nor3_1, sg13g2_nor4_1
+
+AOI/OAI Compound Gates (Area/timing optimization):
+- sg13g2_a21oi_1  : NOR(AND(A1,A2), B1)
+- sg13g2_o21ai_1  : NAND(OR(A1,A2), B1)
+- sg13g2_a22oi_1  : NOR(AND(A1,A2), AND(B1,B2))
+- sg13g2_a221oi_1 : NOR(AND(A1,A2), AND(B1,B2), C1)
+
+Note: These are typically inserted by synthesis tools for optimization,
+      not manually instantiated from behavioral models.
+
+================================================================================
+
+CITADEL PROJECT SPECIFIC RECOMMENDATIONS
+=========================================
+
+For tt_um_vaelix_sentinel module:
+1. sys_ena buffer (buffer_cell):
+   -> sg13g2_buf_2 (moderate fanout to output muxes)
+
+2. is_authorized comparator:
+   -> Keep as behavioral (ui_in == 8'b1011_0110)
+   -> Synthesis will optimize to gates
+
+3. Output multiplexers (ternary operators):
+   -> Allow synthesis to map (may use AOI/OAI for better area)
+   -> Or explicitly use sg13g2_mux2_1 if control needed
+
+4. Future state machine (if added):
+   -> Use sg13g2_dfrbp_1 for state registers
+   -> rst_n is already active-low, matches RESET_B directly
+
+================================================================================
+
+CONTACT & REFERENCES
+====================
+
+Documentation: /docs/pdk_primitive_mapping.md (detailed guide)
+PDK Source:    https://github.com/IHP-GmbH/IHP-Open-PDK
+PDK Docs:      https://ihp-open-designlib.readthedocs.io/
+Project:       Vaelix Systems - Project Citadel / Sentinel Mark I
+
+For questions: Refer to detailed mapping document
+Version:       1.0.0 (2026-02-16)
+
+================================================================================
