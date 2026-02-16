@@ -92,7 +92,7 @@ cat src/project.v
 ## Notes
 
 - The `(* keep_hierarchy *)` attribute prevents synthesis from collapsing the scattered registers
-- Initial blocks ensure registers are properly initialized at power-on
+- Reset logic properly initializes registers at power-on/reset for ASIC synthesis
 - The deception strategy can be adjusted by changing which bits use inverted storage
 - Physical placement of standard cells is ultimately determined by the OpenROAD placer based on timing, congestion, and other constraints
 

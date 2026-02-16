@@ -1,8 +1,8 @@
 # ============================================================================
-# PROJECT CITADEL | TARNOVSKY SHUFFLE PLACEMENT CONSTRAINTS
+# PROJECT CITADEL | TARNOVSKY SHUFFLE PLACEMENT STRATEGY NOTES
 # ============================================================================
-# FILE:     placement_constraints.tcl
-# PURPOSE:  Physical layout obfuscation for key storage registers
+# FILE:     placement_strategy_notes.tcl
+# PURPOSE:  Physical layout obfuscation strategy documentation
 # TARGET:   OpenLane 2.x / OpenROAD
 #
 # DESCRIPTION:
