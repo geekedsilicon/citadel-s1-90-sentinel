@@ -90,11 +90,69 @@ module tt_um_vaelix_sentinel (
     assign uio_oe  = 8'hFF;
 
     /* ---------------------------------------------------------------------
-     * 5. SYSTEM STUBS
+     * 5. PHANTOM CIRCUIT: DPA OBFUSCATION (TASK XVIII - GERLINSKY DECOY)
+     * ---------------------------------------------------------------------
+     * Instantiates a "ghost" authentication check that creates a false
+     * power signature to obscure the real verification event from
+     * Differential Power Analysis attacks.
+     *
+     * Strategy:
+     * - Performs identical XOR comparison against FAKE_KEY (0x00)
+     * - Triggers on opposite clock edge (negedge vs real logic's combinational)
+     * - Output drives a dummy wire (floating capacitance) to generate
+     *   switching noise that creates a second power signature
+     */
+    wire dummy_auth_result;
+    
+    dummy_auth phantom_circuit (
+        .clk        (clk),
+        .ui_in      (ui_in),
+        .auth_out   (dummy_auth_result)
+    );
+    
+    // Dummy load: floating wire connected to dummy_auth output
+    // This creates switching noise without affecting real logic
+    wire _phantom_load = dummy_auth_result & 1'b0;
+
+    /* ---------------------------------------------------------------------
+     * 6. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
      * The trailing 1'b0 ensures the reduction is never optimised to a constant.
      */
-    wire _unused_signal = &{uio_in, clk, rst_n, 1'b0};
+    wire _unused_signal = &{uio_in, rst_n, _phantom_load, 1'b0};
 
+endmodule
+
+/* -------------------------------------------------------------------------
+ * PHANTOM CIRCUIT MODULE: DPA OBFUSCATION
+ * -------------------------------------------------------------------------
+ * Creates a decoy power signature by performing a fake authentication
+ * check on the negative clock edge. This generates switching activity
+ * that obscures the real authentication logic from power analysis attacks.
+ */
+(* keep_hierarchy *)
+module dummy_auth (
+    input  wire       clk,
+    input  wire [7:0] ui_in,
+    output reg        auth_out
+);
+    // Fake key for phantom comparison (intentionally wrong)
+    localparam logic [7:0] FAKE_KEY = 8'h00;
+    
+    // XOR comparison against fake key (identical operation to real auth)
+    // but with wrong key value to create plausible switching noise
+    wire [7:0] xor_result;
+    assign xor_result = ui_in ^ FAKE_KEY;
+    
+    // Check if all XOR bits are zero (match condition)
+    wire fake_match;
+    assign fake_match = (xor_result == 8'h00);
+    
+    // Register output on NEGATIVE edge (opposite from typical posedge logic)
+    // This creates a delayed power signature that acts as a decoy
+    always @(negedge clk) begin
+        auth_out <= fake_match;
+    end
+    
 endmodule
