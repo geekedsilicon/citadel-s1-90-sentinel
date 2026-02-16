@@ -134,19 +134,21 @@ jobs:
 
       # ------------------------------------------------------------------------
       # STEP 5: REPORTING (always runs — captures both pass and fail)
+      # Only runs if Wokwi project exists and truthtable was found
       # ------------------------------------------------------------------------
       - name: Test Summary
         uses: test-summary/action@v2.3
         with:
           paths: "test/results.xml"
-        if: always()
+        if: always() && steps.check_wokwi.outputs.has_wokwi == 'true' && steps.check_files.outputs.files_exists == 'true'
 
       # ------------------------------------------------------------------------
       # STEP 6: ARTIFACT UPLOAD
       # VCD waveforms for post-run analysis in GTKWave or Surfer.
+      # Only runs if tests were executed
       # ------------------------------------------------------------------------
       - name: Upload vcd
-        if: success() || failure()
+        if: (success() || failure()) && steps.check_wokwi.outputs.has_wokwi == 'true' && steps.check_files.outputs.files_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: test-vcd
