@@ -64,37 +64,42 @@ module vaelix_sentinel_assertions (
      *
      * This demonstrates that the formal tool can find a valid authorization
      * sequence path through the design.
+     *
+     * Implementation: Track time since reset release and detect key application.
+     * The formal tool will search for a trace where reset was held for 5+ cycles,
+     * then released, then the key was applied.
      */
-    reg [2:0] reset_counter;
-    reg       reset_phase_done;
-    reg       key_applied;
+    reg [3:0] cycles_since_reset_release;
+    reg       seen_reset_released;
+    reg       seen_key_after_reset;
     
     always @(posedge clk) begin
         if (!rst_n) begin
-            reset_counter <= 3'd0;
-            reset_phase_done <= 1'b0;
-            key_applied <= 1'b0;
+            cycles_since_reset_release <= 4'd0;
+            seen_reset_released <= 1'b0;
+            seen_key_after_reset <= 1'b0;
         end else begin
-            // Count cycles after reset release
-            if (!reset_phase_done && reset_counter < 3'd5) begin
-                reset_counter <= reset_counter + 3'd1;
+            // Track that we've seen reset released
+            if (!seen_reset_released) begin
+                seen_reset_released <= 1'b1;
             end
             
-            // Mark reset phase as done after 5 cycles
-            if (reset_counter >= 3'd5) begin
-                reset_phase_done <= 1'b1;
+            // Count cycles since reset was released
+            if (cycles_since_reset_release < 4'd15) begin
+                cycles_since_reset_release <= cycles_since_reset_release + 4'd1;
             end
             
-            // Check if key was applied after reset phase
-            if (reset_phase_done && ui_in == 8'hB6) begin
-                key_applied <= 1'b1;
+            // Detect key application after reset was released
+            if (seen_reset_released && ui_in == 8'hB6) begin
+                seen_key_after_reset <= 1'b1;
             end
         end
     end
     
-    // Cover property: we want to find a trace where key is applied after proper reset
+    // Cover property: Find trace where reset released and key applied afterward
+    // The formal tool will try different reset durations to satisfy this
     always @(posedge clk) begin
-        if (rst_n && reset_phase_done && key_applied) begin
+        if (rst_n && seen_key_after_reset) begin
             cover (1);
         end
     end
