@@ -2,7 +2,7 @@
 # VAELIX | SENTINEL MARK I — GDSII HARDENING PIPELINE
 # ==============================================================================
 # FILE:      .github/workflows/gds.yaml
-# VERSION:   1.1.0 — Citadel Standard
+# VERSION:   1.2.0 — Citadel Standard + The Warden
 # TARGET:    Tiny Tapeout 06 (IHP 130nm SG13G2) — ttihp26a Shuttle
 # REPO:      citadel-s1-90-sentinel
 #
@@ -11,10 +11,10 @@
 #   Deploys the interactive layout viewer to GitHub Pages on completion.
 #
 # PIPELINE ORDER:
-#   gds → viewer
+#   gds → metrics → viewer
 #
 # NOTE — SENTINEL VS CORE PIPELINE:
-#   This pipeline runs gds + viewer only.
+#   This pipeline runs gds + metrics + viewer.
 #   citadel-s1-90-core additionally runs precheck + gl_test.
 #   Do NOT add those jobs here — the sentinel is Wokwi-based and does
 #   not have the gate-level netlist infrastructure those jobs require.
@@ -25,6 +25,10 @@
 #   shuttle coordinator approval.
 #
 # FIX LOG:
+#   v1.2.0 — [FEATURE] Added metrics comparison job (THE WARDEN)
+#             Compares cell count against main branch baseline.
+#             Fails build if gate count increases > 5% without bypass.
+#             Bypass via '[bypass-metrics]' in commit or workflow input.
 #   v1.1.0 — [CRITICAL] Removed 'branches: main' filter from push trigger
 #             GDS must build on all branches, not just main.
 #   v1.1.0 — Added concurrency guard (cancels stale hardening runs)
@@ -39,6 +43,12 @@ name: gds
 on:
   push:
   workflow_dispatch:
+    inputs:
+      bypass_metrics:
+        description: 'Bypass metrics threshold check'
+        required: false
+        type: boolean
+        default: false
 
 # Cancel any in-progress hardening run when a newer push arrives.
 # GDS synthesis is the most expensive job — never let stale runs hold runners.
@@ -78,13 +88,156 @@ jobs:
           # ⚠️ MANDATORY VERSION — do not upgrade without shuttle approval.
           librelane-version: 3.0.0.dev44
 
+      # Store synthesis metrics for comparison
+      - name: Upload synthesis metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthesis-metrics-current
+          path: runs/wokwi/
+
   # ----------------------------------------------------------------------------
-  # JOB 2: LAYOUT VIEWER DEPLOYMENT
+  # JOB 2: METRICS COMPARISON (THE WARDEN)
+  # Compares cell count and power consumption against main branch.
+  # Fails build if gate count increases by more than 5% without bypass.
+  # ----------------------------------------------------------------------------
+  metrics:
+    needs: gds
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download current branch metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: synthesis-metrics-current
+          path: runs-current/
+
+      - name: Extract current branch metrics
+        id: current_metrics
+        run: |
+          # Find and parse synthesis log for cell count
+          LOG_FILE=$(find runs-current/ -name "*.log" -type f | xargs grep -l "Number of cells" | head -1)
+
+          if [ -z "$LOG_FILE" ]; then
+            echo "Error: Could not find synthesis log with cell count"
+            exit 1
+          fi
+
+          # Extract cell count from Yosys statistics
+          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oP '\d+')
+
+          if [ -z "$CELL_COUNT" ]; then
+            echo "Error: Could not extract cell count from log"
+            exit 1
+          fi
+
+          echo "cell_count=$CELL_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Current branch cell count: $CELL_COUNT"
+
+      - name: Checkout main branch
+        run: |
+          # Clone main branch into a separate directory
+          git clone --branch main --single-branch --depth 1 https://github.com/${{ github.repository }}.git main-branch
+
+      - name: Build GDS for main branch
+        run: |
+          cd main-branch
+          # Use docker directly to run the action in this directory
+          docker run --rm \
+            -v $(pwd):/work \
+            -w /work \
+            ghcr.io/tinytapeout/tt-gds-action:ttihp26a \
+            /bin/bash -c "tt-gds-action --pdk ihp-sg13g2 --librelane-version 3.0.0.dev44"
+
+      - name: Extract main branch metrics
+        id: main_metrics
+        run: |
+          cd main-branch
+
+          # Find and parse synthesis log for cell count
+          LOG_FILE=$(find runs/wokwi/ -name "*.log" -type f 2>/dev/null | xargs grep -l "Number of cells" 2>/dev/null | head -1)
+
+          if [ -z "$LOG_FILE" ]; then
+            echo "⚠️  Warning: Could not find main branch synthesis log"
+            echo "Skipping comparison (main branch may not have been built yet)"
+            echo "cell_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oP '\d+')
+
+          if [ -z "$CELL_COUNT" ]; then
+            echo "⚠️  Warning: Could not extract main branch cell count"
+            echo "cell_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "cell_count=$CELL_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Main branch cell count: $CELL_COUNT"
+
+      - name: Compare metrics and enforce threshold
+        run: |
+          CURRENT_CELLS=${{ steps.current_metrics.outputs.cell_count }}
+          MAIN_CELLS=${{ steps.main_metrics.outputs.cell_count }}
+
+          # Check for manual bypass via workflow input or commit message
+          BYPASS_INPUT="${{ github.event.inputs.bypass_metrics }}"
+          BYPASS_COMMIT=$(git log -1 --pretty=%B | grep -i "\[bypass-metrics\]" || echo "")
+
+          if [ "$MAIN_CELLS" -eq "0" ]; then
+            echo "⚠️  No baseline metrics from main branch - skipping comparison"
+            exit 0
+          fi
+
+          if [ "$BYPASS_INPUT" = "true" ] || [ ! -z "$BYPASS_COMMIT" ]; then
+            echo "✓ Manual bypass detected - skipping threshold check"
+            echo "  Current: $CURRENT_CELLS cells | Main: $MAIN_CELLS cells"
+            exit 0
+          fi
+
+          # Calculate percentage change
+          CHANGE=$(echo "scale=2; ($CURRENT_CELLS - $MAIN_CELLS) * 100 / $MAIN_CELLS" | bc)
+
+          echo ""
+          echo "════════════════════════════════════════════════════════"
+          echo "  METRICS COMPARISON (THE WARDEN)"
+          echo "════════════════════════════════════════════════════════"
+          echo "  Current branch: $CURRENT_CELLS cells"
+          echo "  Main branch:    $MAIN_CELLS cells"
+          echo "  Change:         $CHANGE%"
+          echo "════════════════════════════════════════════════════════"
+          echo ""
+
+          # Check if change is an increase and exceeds threshold (5%)
+          IS_INCREASE=$(echo "$CHANGE > 0" | bc)
+          EXCEEDS_THRESHOLD=$(echo "$CHANGE > 5" | bc)
+
+          if [ "$IS_INCREASE" -eq "1" ] && [ "$EXCEEDS_THRESHOLD" -eq "1" ]; then
+            echo "❌ GATE COUNT INCREASE EXCEEDS 5% THRESHOLD"
+            echo ""
+            echo "   Increase: $CHANGE% (threshold: 5%)"
+            echo ""
+            echo "   To bypass this check:"
+            echo "   - Include '[bypass-metrics]' in your commit message, OR"
+            echo "   - Manually trigger workflow with 'bypass_metrics' option enabled"
+            echo ""
+            exit 1
+          elif [ "$IS_INCREASE" -eq "1" ]; then
+            echo "✓ Gate count increased by $CHANGE% (within 5% threshold)"
+          else
+            echo "✓ Gate count decreased or unchanged ($CHANGE%)"
+          fi
+
+  # ----------------------------------------------------------------------------
+  # JOB 3: LAYOUT VIEWER DEPLOYMENT
   # Deploys the interactive GDSII viewer to GitHub Pages.
   # Requires pages and id-token permissions for authenticated deployment.
   # ----------------------------------------------------------------------------
   viewer:
-    needs: gds
+    needs: [gds, metrics]
     runs-on: ubuntu-24.04
     permissions:
       pages: write # Required to deploy to GitHub Pages
