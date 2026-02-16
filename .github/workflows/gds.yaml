@@ -2,7 +2,7 @@
 # VAELIX | SENTINEL MARK I — GDSII HARDENING PIPELINE
 # ==============================================================================
 # FILE:      .github/workflows/gds.yaml
-# VERSION:   1.1.0 — Citadel Standard
+# VERSION:   1.2.0 — Citadel Standard
 # TARGET:    Tiny Tapeout 06 (IHP 130nm SG13G2) — ttihp26a Shuttle
 # REPO:      citadel-s1-90-sentinel
 #
@@ -25,6 +25,7 @@
 #   shuttle coordinator approval.
 #
 # FIX LOG:
+#   v1.2.0 — [SECURITY] Added path sanitization to prevent runner info leakage
 #   v1.1.0 — [CRITICAL] Removed 'branches: main' filter from push trigger
 #             GDS must build on all branches, not just main.
 #   v1.1.0 — Added concurrency guard (cancels stale hardening runs)
@@ -54,11 +55,26 @@ jobs:
   # ----------------------------------------------------------------------------
   gds:
     runs-on: ubuntu-24.04
+    env:
+      # Sanitize paths in logs to prevent runner username/structure leakage
+      # GitHub Actions automatically masks secret values, but we need to
+      # prevent local paths from revealing runner infrastructure details
+      RUNNER_WORKSPACE_SANITIZED: "/workspace"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Sanitize environment paths
+        run: |
+          echo "🔒 Sanitizing runner path information..."
+          # Mask the actual runner workspace path in GitHub Actions logs
+          echo "::add-mask::$GITHUB_WORKSPACE"
+          echo "::add-mask::$HOME"
+          echo "::add-mask::$(pwd)"
+          echo "::add-mask::$(dirname $GITHUB_WORKSPACE)"
+          echo "Working directory: [SANITIZED]"
 
       - name: Check Wokwi project ID
         id: check_wokwi

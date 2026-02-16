@@ -1,0 +1,143 @@
+# ==============================================================================
+# VAELIX | SENTINEL MARK I — INFORMATION HYGIENE PIPELINE
+# ==============================================================================
+# FILE:      .github/workflows/osint_scan.yaml
+# VERSION:   1.0.0 — Citadel Standard
+# REPO:      citadel-s1-90-sentinel
+#
+# PURPOSE:
+#   Enforces strict information hygiene by scanning for credentials, metadata
+#   leaks, and development artifacts that could compromise security posture.
+#   Inspired by Ryan Montgomery's OSINT methodologies.
+#
+# SCANNING LAYERS:
+#   1. Gitleaks — High-entropy strings, API keys, private keys, credentials
+#   2. Custom Regex — Metadata leaks (User:, Author:, Internal IP:, Confidential)
+#   3. Development Comments — TODO, FIXME, HACK annotations in src/
+#
+# TRIGGER:
+#   Runs on every push and pull request to catch leaks before they reach main.
+# ==============================================================================
+
+name: osint_scan
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # JOB 1: GITLEAKS SECRET SCANNING
+  # Scans for high-entropy strings, private keys, and hardcoded credentials
+  # ----------------------------------------------------------------------------
+  gitleaks:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for comprehensive scanning
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Optional for enterprise features
+
+  # ----------------------------------------------------------------------------
+  # JOB 2: METADATA LEAK DETECTION
+  # Custom regex scanning for metadata patterns that expose internal info
+  # ----------------------------------------------------------------------------
+  metadata_scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Scan for metadata leaks
+        run: |
+          echo "🔍 Scanning for metadata leaks..."
+          
+          # Define patterns that should never appear in committed files
+          PATTERNS=(
+            "User:"
+            "Author:"
+            "Internal IP:"
+            "Confidential"
+          )
+          
+          VIOLATIONS_FOUND=0
+          
+          for pattern in "${PATTERNS[@]}"; do
+            echo "Checking for pattern: $pattern"
+            
+            # Search all tracked files, excluding .git directory
+            if grep -r --include="*" --exclude-dir=".git" -n "$pattern" . ; then
+              echo "❌ VIOLATION: Found '$pattern' in the above files"
+              VIOLATIONS_FOUND=1
+            else
+              echo "✓ No matches for '$pattern'"
+            fi
+            echo ""
+          done
+          
+          if [ $VIOLATIONS_FOUND -eq 1 ]; then
+            echo "❌ METADATA LEAK DETECTED"
+            echo "Files containing User:, Author:, Internal IP:, or Confidential must be sanitized"
+            exit 1
+          fi
+          
+          echo "✓ No metadata leaks detected"
+
+  # ----------------------------------------------------------------------------
+  # JOB 3: DEVELOPMENT COMMENT SCANNER
+  # Fails build if TODO, FIXME, or HACK comments exist in src/
+  # ----------------------------------------------------------------------------
+  comment_hygiene:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Scan for development comments in src/
+        run: |
+          echo "🔍 Scanning src/ for development comments..."
+          
+          # Define comment patterns that indicate unfinished work
+          COMMENT_PATTERNS=(
+            "// TODO"
+            "// FIXME"
+            "// HACK"
+            "//TODO"
+            "//FIXME"
+            "//HACK"
+            "# TODO"
+            "# FIXME"
+            "# HACK"
+            "/\* TODO"
+            "/\* FIXME"
+            "/\* HACK"
+          )
+          
+          COMMENTS_FOUND=0
+          
+          for pattern in "${COMMENT_PATTERNS[@]}"; do
+            echo "Checking for: $pattern"
+            
+            # Search only in src/ directory
+            if grep -r -n "$pattern" src/ 2>/dev/null ; then
+              echo "❌ VIOLATION: Found '$pattern' in src/"
+              COMMENTS_FOUND=1
+            fi
+          done
+          
+          if [ $COMMENTS_FOUND -eq 1 ]; then
+            echo ""
+            echo "❌ DEVELOPMENT COMMENTS DETECTED IN src/"
+            echo "All TODO, FIXME, and HACK comments must be resolved before commit"
+            echo "Remove or address these comments to pass the hygiene check"
+            exit 1
+          fi
+          
+          echo "✓ No development comments found in src/"
