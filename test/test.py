@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
+import random
 
 # ============================================================================
 # VAELIX MISSION CONSTANTS
@@ -969,6 +970,7 @@ try:
     import cocotb
     from cocotb.clock import Clock
     from cocotb.triggers import ClockCycles
+    from cocotb.utils import get_sim_time
     COCOTB_AVAILABLE = True
 except ImportError:
     COCOTB_AVAILABLE = False
@@ -1599,6 +1601,71 @@ if COCOTB_AVAILABLE:
         dut._log.info("  Simulation provides functional validation only")
         
         dut._log.info("TEST 16: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 16: RANDOM NOISE INJECTION (CHAOS MONKEY)
+    # ================================================================
+    @cocotb.test()
+    async def test_random_noise_injection(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 16: CHAOS MONKEY (Random Noise Injection)")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        
+        # Initial reset
+        await reset_sentinel(dut)
+        
+        # Seed random number generator with simulation time (after reset to accumulate time)
+        seed = get_sim_time(units='ns')
+        random.seed(seed)
+        dut._log.info(f"  RNG seeded with simulation time: {seed}ns")
+        
+        violations = []
+        
+        # Run for 1,000 clock cycles with random inputs and control toggles
+        for cycle in range(1000):
+            # Drive ui_in with random 8-bit integer
+            random_key = random.randint(0, 255)
+            dut.ui_in.value = random_key
+            
+            # Randomly toggle ena and rst_n with 5% probability each
+            if random.random() < 0.05:
+                dut.ena.value = 0
+            else:
+                dut.ena.value = 1
+                
+            if random.random() < 0.05:
+                dut.rst_n.value = 0
+            else:
+                dut.rst_n.value = 1
+            
+            # Store current control states (these will affect output after clock edge)
+            current_ena = int(dut.ena.value)
+            current_rst_n = int(dut.rst_n.value)
+            
+            # Wait for clock edge (output should reflect the control signals set above)
+            await ClockCycles(dut.clk, 1)
+            
+            # Check invariant: if rst_n=0 or ena=0, uo_out must be 0xFF
+            uo_out_value = int(dut.uo_out.value)
+            
+            if current_rst_n == 0 or current_ena == 0:
+                if uo_out_value != 0xFF:
+                    sim_time = get_sim_time(units='ns')
+                    violation_msg = (
+                        f"INVARIANT VIOLATION at cycle {cycle} (time={sim_time}ns): "
+                        f"ena={current_ena}, rst_n={current_rst_n}, "
+                        f"expected uo_out=0xFF, got uo_out=0x{uo_out_value:02X}"
+                    )
+                    dut._log.error(f"  {violation_msg}")
+                    violations.append(violation_msg)
+        
+        # Report results
+        if violations:
+            dut._log.error(f"  TEST FAILED: {len(violations)} invariant violations detected")
+            assert False, f"Random noise injection test failed: {len(violations)} invariant violations detected"
+        else:
+            dut._log.info(f"  [PASS] All 1,000 cycles completed with no violations")
+            dut._log.info("TEST 16: COMPLETE")
 
 
 # ============================================================================
