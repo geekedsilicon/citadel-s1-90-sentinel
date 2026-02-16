@@ -37,6 +37,8 @@ on:
 jobs:
   update-pinout:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Need write permission to commit updated README
     
     steps:
       - name: Checkout repository
