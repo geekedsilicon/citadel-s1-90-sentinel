@@ -21,22 +21,24 @@
   "//I": "--- LINTING ----------------------------------------------------",
   "//J": "Verilator: strict structural linting for zero-defect RTL.",
   "//K": "Include path resolves IHP SG13G2 PDK primitives — prevents false positives.",
+  "//L": "Strict flags: -Wall (all warnings), -Wwarn-UNDRIVEN (detect unused signals).",
+  "//M": "Note: Verilator exits with error on any warning (use -Wno-fatal to disable).",
   "verilog.linting.linter": "verilator",
-  "verilog.linting.verilator.arguments": "-I${workspaceFolder}/src",
+  "verilog.linting.verilator.arguments": "-Wall -Wwarn-UNDRIVEN --top-module tt_um_vaelix_sentinel -I${workspaceFolder}/src",
 
-  "//L": "--- FORMATTING -------------------------------------------------",
-  "//M": "Verible: enforces Vaelix port alignment and indentation.",
+  "//N": "--- FORMATTING -------------------------------------------------",
+  "//O": "Verible: enforces Vaelix port alignment and indentation.",
   "verilog.formatting.verilogHDL.formatter": "verible-verilog-format",
 
-  "//N": "--- FILE ASSOCIATIONS ------------------------------------------",
-  "//O": "Map .gtkw to plaintext — prevents binary/unknown file warnings.",
+  "//P": "--- FILE ASSOCIATIONS ------------------------------------------",
+  "//Q": "Map .gtkw to plaintext — prevents binary/unknown file warnings.",
   "files.associations": {
     "*.gtkw": "plaintext"
   },
 
-  "//P": "--- EDITOR STANDARDS -------------------------------------------",
-  "//Q": "80-column ruler enforces Vaelix vertical alignment standard.",
-  "//R": "4-space indentation, format on save, LF line endings enforced.",
+  "//R": "--- EDITOR STANDARDS -------------------------------------------",
+  "//S": "80-column ruler enforces Vaelix vertical alignment standard.",
+  "//T": "4-space indentation, format on save, LF line endings enforced.",
   "editor.rulers":               [80],
   "editor.tabSize":              4,
   "editor.insertSpaces":         true,
