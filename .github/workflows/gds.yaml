@@ -64,6 +64,9 @@ jobs:
   # ----------------------------------------------------------------------------
   gds:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read    # Required to checkout repository
+      actions: write    # Required to upload artifacts
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -104,6 +107,9 @@ jobs:
   metrics:
     needs: gds
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read  # Required to checkout repository
+      actions: read   # Required to download artifacts
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4
