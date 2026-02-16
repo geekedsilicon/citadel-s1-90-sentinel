@@ -1,0 +1,43 @@
+[*]
+[*] VAELIX SENTINEL | Waveform Configuration
+[*] Project Citadel S1-90 Core
+[*]
+[dumpfile] "tb.fst"
+[savefile] "tb.gtkw"
+[timestart] 0
+[size] 1600 800
+[pos] -1 -1
+*-16.000000 140 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb.
+[treeopen] tb.user_project.
+[sst_width] 280
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 200
+@200
+-System Control
+@29
+tb.clk
+@28
+tb.rst_n
+tb.ena
+@200
+-Authorization Key (DIP Switches)
+@22
+tb.ui_in[7:0]
+@200
+-7-Segment Display Output
+@22
+tb.uo_out[7:0]
+@200
+-Vaelix Glow Status Array
+@22
+tb.uio_out[7:0]
+@22
+tb.uio_oe[7:0]
+@200
+-Bidirectional Input Path
+@22
+tb.uio_in[7:0]
+[pattern_trace] 1
+[pattern_trace] 0
