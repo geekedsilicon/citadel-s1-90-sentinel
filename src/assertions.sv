@@ -48,11 +48,15 @@ module vaelix_sentinel_assertions (
      * previous clock cycle.
      *
      * This ensures that the VERIFIED state can only be reached with the
-     * correct authorization key.
+     * correct authorization key presented in the previous cycle.
+     * 
+     * Note: This temporal property verifies that the VERIFIED state appears
+     * only when the authorization key was presented in the immediately 
+     * preceding clock cycle.
      */
     always @(posedge clk) begin
         if (rst_n && ena) begin
-            // If output shows VERIFIED, previous input must have been the key
+            // If output shows VERIFIED, previous cycle's input must have been the key
             if (uo_out == VERIFIED_STATE) begin
                 assert (ui_in_prev == AUTH_KEY);
             end
@@ -101,12 +105,10 @@ module vaelix_sentinel_assertions (
         end
     end
     
-    // Cover property: Find trace where reset released and key applied afterward
-    // The formal tool will try different reset durations to satisfy this
+    // Cover property: Find trace where key is applied after reset release
+    // This will cover the scenario: reset held low → reset released → key applied
     always @(posedge clk) begin
-        if (rst_n && seen_key_after_reset) begin
-            cover (1);
-        end
+        cover (rst_n && seen_key_after_reset);
     end
 
 endmodule
