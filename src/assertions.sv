@@ -25,6 +25,11 @@ module vaelix_sentinel_assertions (
     input wire       rst_n
 );
 
+    // Sentinel state and key constants
+    localparam [7:0] AUTH_KEY = 8'hB6;        // Vaelix authorization key
+    localparam [7:0] VERIFIED_STATE = 8'hC1;  // Output value when verified
+    localparam [3:0] MAX_CYCLE_COUNT = 4'd15; // Maximum cycle counter value
+
     // Previous cycle ui_in value register
     reg [7:0] ui_in_prev;
     
@@ -47,9 +52,9 @@ module vaelix_sentinel_assertions (
      */
     always @(posedge clk) begin
         if (rst_n && ena) begin
-            // If output shows VERIFIED (0xC1), previous input must have been key (0xB6)
-            if (uo_out == 8'hC1) begin
-                assert (ui_in_prev == 8'hB6);
+            // If output shows VERIFIED, previous input must have been the key
+            if (uo_out == VERIFIED_STATE) begin
+                assert (ui_in_prev == AUTH_KEY);
             end
         end
     end
@@ -85,12 +90,12 @@ module vaelix_sentinel_assertions (
             end
             
             // Count cycles since reset was released
-            if (cycles_since_reset_release < 4'd15) begin
+            if (cycles_since_reset_release < MAX_CYCLE_COUNT) begin
                 cycles_since_reset_release <= cycles_since_reset_release + 4'd1;
             end
             
             // Detect key application after reset was released
-            if (seen_reset_released && ui_in == 8'hB6) begin
+            if (seen_reset_released && ui_in == AUTH_KEY) begin
                 seen_key_after_reset <= 1'b1;
             end
         end

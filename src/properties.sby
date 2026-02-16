@@ -8,6 +8,9 @@
 # ============================================================================
 
 [options]
+# BMC (Bounded Model Checking) mode is used to search for counterexamples
+# within the specified depth. This is appropriate for finding assertion
+# violations or satisfying cover properties within a bounded timeframe.
 mode bmc
 depth 20
 
