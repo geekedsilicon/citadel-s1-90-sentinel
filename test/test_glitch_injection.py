@@ -82,7 +82,7 @@ async def test_glitch_injection_triggers_reset(dut):
     dut.user_project.glitch_detected.value = 1
     
     # Wait a small amount of time for the signal to propagate
-    await Timer(1, units="ns")
+    await Timer(1, unit="ns")
     
     # Phase 3: Verify immediate reset behavior
     dut._log.info("Phase 3: Verify system responds to glitch with hard reset")
@@ -103,7 +103,7 @@ async def test_glitch_injection_triggers_reset(dut):
     
     # Release the forced glitch signal
     dut.user_project.glitch_detected.value = 0
-    await Timer(1, units="ns")
+    await Timer(1, unit="ns")
     
     # Verify internal_rst_n returns to high (reset released)
     internal_rst_n = int(dut.user_project.internal_rst_n.value)
