@@ -2,8 +2,17 @@ name: Build and push Docker image
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      no-cache:
+        description: "Build without cache (full rebuild)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 jobs:
   build:
@@ -34,6 +43,7 @@ jobs:
           context: .
           file: .devcontainer/Dockerfile
           push: true
+          no-cache: ${{ github.event.inputs.no-cache == 'true' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/citadel-sentinel:dev
             ghcr.io/${{ github.repository_owner }}/citadel-sentinel:latest
