@@ -1,0 +1,427 @@
+
+[1m[96m
+  ██╗   ██╗ █████╗ ███████╗██╗     ██╗██╗  ██╗
+  ██║   ██║██╔══██╗██╔════╝██║     ██║╚██╗██╔╝
+  ██║   ██║███████║█████╗  ██║     ██║ ╚███╔╝
+  ╚██╗ ██╔╝██╔══██║██╔══╝  ██║     ██║ ██╔██╗
+   ╚████╔╝ ██║  ██║███████╗███████╗██║██╔╝ ██╗
+    ╚═══╝  ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝╚═╝  ╚═╝
+  SENTINEL INTERROGATOR v2.0 — Software Model
+  Key: 0xB6 | Locked: 0xC7 ('L') | Verified: 0xC1 ('U')
+[0m
+
+[1m[96m========================================================================
+  TEST 1: AUTHORIZATION — THE GOLDEN PATH
+========================================================================[0m
+  [1m[95m--- Phase 1: Default Locked State ---[0m
+  [2m  [INFO][0m Input: 0x00 → Segment: 0xc7, Glow: 0x0
+  [92m  [PASS][0m Default state: LOCKED ('L') = 0xc7
+  [1m[95m--- Phase 2: Inject Vaelix Key (0xB6) ---[0m
+  [2m  [INFO][0m Input: 0xb6 → Segment: 0xc1, Glow: 0xff
+  [92m  [PASS][0m Key accepted: VERIFIED ('U') = 0xc1, Glow = 0xff
+  [1m[95m--- Phase 3: Remove Key — Instant Re-Lock ---[0m
+  [2m  [INFO][0m Input: 0x00 → Segment: 0xc7, Glow: 0x0
+  [92m  [PASS][0m Re-locked instantly: 0xc7
+  [92m[1m  ✓ TEST 1: AUTHORIZATION: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 2: INTRUSION DEFLECTION — FULL 256-KEY SWEEP
+========================================================================[0m
+  [92m  [PASS][0m Key 0xb6: AUTHORIZED (correct)
+  [2m  [INFO][0m Sweep results: 1 authorized, 255 deflected, 0 breaches
+  [92m  [PASS][0m 1/256 authorized, 255/256 deflected — PERIMETER SEALED
+  [92m[1m  ✓ TEST 2: BRUTE-FORCE SWEEP: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 3: RESET BEHAVIOR — COLD START VERIFICATION
+========================================================================[0m
+  [1m[95m--- Phase 1: Establish VERIFIED state ---[0m
+  [2m  [INFO][0m Input: 0xb6 → seg=0xc1
+  [92m  [PASS][0m Pre-reset: VERIFIED confirmed
+  [1m[95m--- Phase 2: Assert Reset (re-initialize model) ---[0m
+  [2m  [INFO][0m Model reset → seg=0xc7, glow=0x0
+  [92m  [PASS][0m Post-reset: LOCKED (default)
+  [1m[95m--- Phase 3: Re-inject Key After Reset ---[0m
+  [2m  [INFO][0m Input: 0xb6 → seg=0xc1
+  [92m  [PASS][0m Post-reset re-auth: VERIFIED
+  [1m[95m--- Phase 4: Release Key ---[0m
+  [92m  [PASS][0m Key released: LOCKED restored
+  [92m[1m  ✓ TEST 3: RESET BEHAVIOR: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 4: HAMMING-1 ADJACENCY ATTACK (8 single-bit flips)
+========================================================================[0m
+  [2m  [INFO][0m Valid key: 0xb6 = 0b10110110
+  [2m  [INFO][0m Testing all 8 single-bit mutations...
+
+  [2m  [INFO][0m Bit 0: 0xb7 (10110111)
+  [2m  [INFO][0m               (       ^) ← flipped
+  [92m  [PASS][0m Bit 0 flip (0xb7): DEFLECTED
+  [2m  [INFO][0m Bit 1: 0xb4 (10110100)
+  [2m  [INFO][0m               (      ^ ) ← flipped
+  [92m  [PASS][0m Bit 1 flip (0xb4): DEFLECTED
+  [2m  [INFO][0m Bit 2: 0xb2 (10110010)
+  [2m  [INFO][0m               (     ^  ) ← flipped
+  [92m  [PASS][0m Bit 2 flip (0xb2): DEFLECTED
+  [2m  [INFO][0m Bit 3: 0xbe (10111110)
+  [2m  [INFO][0m               (    ^   ) ← flipped
+  [92m  [PASS][0m Bit 3 flip (0xbe): DEFLECTED
+  [2m  [INFO][0m Bit 4: 0xa6 (10100110)
+  [2m  [INFO][0m               (   ^    ) ← flipped
+  [92m  [PASS][0m Bit 4 flip (0xa6): DEFLECTED
+  [2m  [INFO][0m Bit 5: 0x96 (10010110)
+  [2m  [INFO][0m               (  ^     ) ← flipped
+  [92m  [PASS][0m Bit 5 flip (0x96): DEFLECTED
+  [2m  [INFO][0m Bit 6: 0xf6 (11110110)
+  [2m  [INFO][0m               ( ^      ) ← flipped
+  [92m  [PASS][0m Bit 6 flip (0xf6): DEFLECTED
+  [2m  [INFO][0m Bit 7: 0x36 (00110110)
+  [2m  [INFO][0m               (^       ) ← flipped
+  [92m  [PASS][0m Bit 7 flip (0x36): DEFLECTED
+  [92m[1m  ✓ TEST 4: HAMMING-1 ADJACENCY: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 5: UIO DIRECTION INTEGRITY (uio_oe must be 0xFF always)
+========================================================================[0m
+  [92m  [PASS][0m Input  0x0 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0xff [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0xb6 [VERIFIED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0xb7 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0x49 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0xa5 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0x5a [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input  0x1 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0x80 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0x55 [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0xaa [  LOCKED]: uio_oe = 0xff ✓
+  [92m  [PASS][0m Input 0xfe [  LOCKED]: uio_oe = 0xff ✓
+  [92m[1m  ✓ TEST 5: UIO DIRECTION: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 6: RAPID CYCLING STRESS (200 valid/invalid alternations)
+========================================================================[0m
+  [92m  [PASS][0m 200 cycles — zero errors, zero latching
+  [92m[1m  ✓ TEST 6: RAPID CYCLING: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 7: HAMMING-2 DOUBLE-BIT ATTACK (28 combinations)
+========================================================================[0m
+  [92m  [PASS][0m Bits [0,1] → 0xb5 (10110101): DEFLECTED
+  [92m  [PASS][0m Bits [0,2] → 0xb3 (10110011): DEFLECTED
+  [92m  [PASS][0m Bits [0,3] → 0xbf (10111111): DEFLECTED
+  [92m  [PASS][0m Bits [0,4] → 0xa7 (10100111): DEFLECTED
+  [92m  [PASS][0m Bits [0,5] → 0x97 (10010111): DEFLECTED
+  [92m  [PASS][0m Bits [0,6] → 0xf7 (11110111): DEFLECTED
+  [92m  [PASS][0m Bits [0,7] → 0x37 (00110111): DEFLECTED
+  [92m  [PASS][0m Bits [1,2] → 0xb0 (10110000): DEFLECTED
+  [92m  [PASS][0m Bits [1,3] → 0xbc (10111100): DEFLECTED
+  [92m  [PASS][0m Bits [1,4] → 0xa4 (10100100): DEFLECTED
+  [92m  [PASS][0m Bits [1,5] → 0x94 (10010100): DEFLECTED
+  [92m  [PASS][0m Bits [1,6] → 0xf4 (11110100): DEFLECTED
+  [92m  [PASS][0m Bits [1,7] → 0x34 (00110100): DEFLECTED
+  [92m  [PASS][0m Bits [2,3] → 0xba (10111010): DEFLECTED
+  [92m  [PASS][0m Bits [2,4] → 0xa2 (10100010): DEFLECTED
+  [92m  [PASS][0m Bits [2,5] → 0x92 (10010010): DEFLECTED
+  [92m  [PASS][0m Bits [2,6] → 0xf2 (11110010): DEFLECTED
+  [92m  [PASS][0m Bits [2,7] → 0x32 (00110010): DEFLECTED
+  [92m  [PASS][0m Bits [3,4] → 0xae (10101110): DEFLECTED
+  [92m  [PASS][0m Bits [3,5] → 0x9e (10011110): DEFLECTED
+  [92m  [PASS][0m Bits [3,6] → 0xfe (11111110): DEFLECTED
+  [92m  [PASS][0m Bits [3,7] → 0x3e (00111110): DEFLECTED
+  [92m  [PASS][0m Bits [4,5] → 0x86 (10000110): DEFLECTED
+  [92m  [PASS][0m Bits [4,6] → 0xe6 (11100110): DEFLECTED
+  [92m  [PASS][0m Bits [4,7] → 0x26 (00100110): DEFLECTED
+  [92m  [PASS][0m Bits [5,6] → 0xd6 (11010110): DEFLECTED
+  [92m  [PASS][0m Bits [5,7] → 0x16 (00010110): DEFLECTED
+  [92m  [PASS][0m Bits [6,7] → 0x76 (01110110): DEFLECTED
+  [2m  [INFO][0m Total tested: 28, Deflected: 28, Breached: 0
+  [92m[1m  ✓ TEST 7: HAMMING-2 ATTACK: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 8: WALKING ONES / WALKING ZEROS — BUS SCAN
+========================================================================[0m
+  [1m[95m--- Walking Ones (single bit HIGH) ---[0m
+  [92m  [PASS][0m 0x01 (00000001): LOCKED
+  [92m  [PASS][0m 0x02 (00000010): LOCKED
+  [92m  [PASS][0m 0x04 (00000100): LOCKED
+  [92m  [PASS][0m 0x08 (00001000): LOCKED
+  [92m  [PASS][0m 0x10 (00010000): LOCKED
+  [92m  [PASS][0m 0x20 (00100000): LOCKED
+  [92m  [PASS][0m 0x40 (01000000): LOCKED
+  [92m  [PASS][0m 0x80 (10000000): LOCKED
+  [1m[95m--- Walking Zeros (single bit LOW) ---[0m
+  [92m  [PASS][0m 0xFE (11111110): LOCKED
+  [92m  [PASS][0m 0xFD (11111101): LOCKED
+  [92m  [PASS][0m 0xFB (11111011): LOCKED
+  [92m  [PASS][0m 0xF7 (11110111): LOCKED
+  [92m  [PASS][0m 0xEF (11101111): LOCKED
+  [92m  [PASS][0m 0xDF (11011111): LOCKED
+  [92m  [PASS][0m 0xBF (10111111): LOCKED
+  [92m  [PASS][0m 0x7F (01111111): LOCKED
+  [1m[95m--- Boundary Values ---[0m
+  [92m  [PASS][0m 0x00: LOCKED
+  [92m  [PASS][0m 0xFF: LOCKED
+  [92m[1m  ✓ TEST 8: BUS INTEGRITY: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 9: SEGMENT ENCODING FIDELITY — PIN-BY-PIN
+========================================================================[0m
+  [1m[95m--- LOCKED State ('L') — Expected: 0xC7 ---[0m
+  [2m  [INFO][0m Raw output: 0xc7 = 11000111
+  [92m  [PASS][0m SEG_A [bit 0]: OFF (inactive)
+  [92m  [PASS][0m SEG_B [bit 1]: OFF (inactive)
+  [92m  [PASS][0m SEG_C [bit 2]: OFF (inactive)
+  [92m  [PASS][0m SEG_D [bit 3]: ON  (lit)
+  [92m  [PASS][0m SEG_E [bit 4]: ON  (lit)
+  [92m  [PASS][0m SEG_F [bit 5]: ON  (lit)
+  [92m  [PASS][0m SEG_G [bit 6]: OFF (inactive)
+  [92m  [PASS][0m SEG_DP [bit 7]: OFF (inactive)
+  [1m[95m--- VERIFIED State ('U') — Expected: 0xC1 ---[0m
+  [2m  [INFO][0m Raw output: 0xc1 = 11000001
+  [92m  [PASS][0m SEG_A [bit 0]: OFF (inactive)
+  [92m  [PASS][0m SEG_B [bit 1]: ON  (lit)
+  [92m  [PASS][0m SEG_C [bit 2]: ON  (lit)
+  [92m  [PASS][0m SEG_D [bit 3]: ON  (lit)
+  [92m  [PASS][0m SEG_E [bit 4]: ON  (lit)
+  [92m  [PASS][0m SEG_F [bit 5]: ON  (lit)
+  [92m  [PASS][0m SEG_G [bit 6]: OFF (inactive)
+  [92m  [PASS][0m SEG_DP [bit 7]: OFF (inactive)
+  [1m[95m--- State Transition Delta ---[0m
+  [2m  [INFO][0m LOCKED ^ VERIFIED = 0xc7 ^ 0xc1 = 0x6
+  [2m  [INFO][0m Changed bits: 00000110
+  [2m  [INFO][0m Segments that toggle: B, C
+  [92m  [PASS][0m Delta = 0x06 — only SEG_B and SEG_C toggle (correct)
+  [92m[1m  ✓ TEST 9: SEGMENT ENCODING: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 10: BYTE COMPLEMENT & TRANSFORM REJECTION
+========================================================================[0m
+  [2m  [INFO][0m COMPLEMENT (~0xB6)...................... 0x49 (01001001)
+  [92m  [PASS][0m COMPLEMENT (~0xB6): DEFLECTED
+  [2m  [INFO][0m NIBBLE SWAP............................. 0x6b (01101011)
+  [92m  [PASS][0m NIBBLE SWAP: DEFLECTED
+  [2m  [INFO][0m ROTATE LEFT 1........................... 0x6d (01101101)
+  [92m  [PASS][0m ROTATE LEFT 1: DEFLECTED
+  [2m  [INFO][0m ROTATE LEFT 2........................... 0xda (11011010)
+  [92m  [PASS][0m ROTATE LEFT 2: DEFLECTED
+  [2m  [INFO][0m ROTATE LEFT 4........................... 0x6b (01101011)
+  [92m  [PASS][0m ROTATE LEFT 4: DEFLECTED
+  [2m  [INFO][0m ROTATE RIGHT 1.......................... 0x5b (01011011)
+  [92m  [PASS][0m ROTATE RIGHT 1: DEFLECTED
+  [2m  [INFO][0m ROTATE RIGHT 2.......................... 0xad (10101101)
+  [92m  [PASS][0m ROTATE RIGHT 2: DEFLECTED
+  [2m  [INFO][0m BIT REVERSE............................. 0x6d (01101101)
+  [92m  [PASS][0m BIT REVERSE: DEFLECTED
+  [2m  [INFO][0m XOR 0xAA (ALT MASK)..................... 0x1c (00011100)
+  [92m  [PASS][0m XOR 0xAA (ALT MASK): DEFLECTED
+  [2m  [INFO][0m XOR 0x55 (ALT MASK PH2)................. 0xe3 (11100011)
+  [92m  [PASS][0m XOR 0x55 (ALT MASK PH2): DEFLECTED
+  [2m  [INFO][0m XOR 0x0F (NIBBLE MASK).................. 0xb9 (10111001)
+  [92m  [PASS][0m XOR 0x0F (NIBBLE MASK): DEFLECTED
+  [2m  [INFO][0m XOR 0xF0 (UPPER MASK)................... 0x46 (01000110)
+  [92m  [PASS][0m XOR 0xF0 (UPPER MASK): DEFLECTED
+  [2m  [INFO][0m Transforms deflected: 12, Breaches: 0
+  [92m[1m  ✓ TEST 10: TRANSFORM REJECTION: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 11: HAMMING WEIGHT ANALYSIS — SAME-WEIGHT KEYS
+========================================================================[0m
+  [2m  [INFO][0m Valid key: 0xb6 = 10110110 (Hamming weight: 5)
+  [2m  [INFO][0m Testing all 8-bit values with exactly 5 ones set...
+
+  [2m  [INFO][0m Total keys with weight 5: 56
+  [92m  [PASS][0m 0x1f (00011111): DEFLECTED
+  [92m  [PASS][0m 0x2f (00101111): DEFLECTED
+  [92m  [PASS][0m 0x37 (00110111): DEFLECTED
+  [92m  [PASS][0m 0x3b (00111011): DEFLECTED
+  [92m  [PASS][0m 0x3d (00111101): DEFLECTED
+  [92m  [PASS][0m 0x3e (00111110): DEFLECTED
+  [92m  [PASS][0m 0x4f (01001111): DEFLECTED
+  [92m  [PASS][0m 0x57 (01010111): DEFLECTED
+  [92m  [PASS][0m 0x5b (01011011): DEFLECTED
+  [92m  [PASS][0m 0x5d (01011101): DEFLECTED
+  [92m  [PASS][0m 0x5e (01011110): DEFLECTED
+  [92m  [PASS][0m 0x67 (01100111): DEFLECTED
+  [92m  [PASS][0m 0x6b (01101011): DEFLECTED
+  [92m  [PASS][0m 0x6d (01101101): DEFLECTED
+  [92m  [PASS][0m 0x6e (01101110): DEFLECTED
+  [92m  [PASS][0m 0x73 (01110011): DEFLECTED
+  [92m  [PASS][0m 0x75 (01110101): DEFLECTED
+  [92m  [PASS][0m 0x76 (01110110): DEFLECTED
+  [92m  [PASS][0m 0x79 (01111001): DEFLECTED
+  [92m  [PASS][0m 0x7a (01111010): DEFLECTED
+  [92m  [PASS][0m 0x7c (01111100): DEFLECTED
+  [92m  [PASS][0m 0x8f (10001111): DEFLECTED
+  [92m  [PASS][0m 0x97 (10010111): DEFLECTED
+  [92m  [PASS][0m 0x9b (10011011): DEFLECTED
+  [92m  [PASS][0m 0x9d (10011101): DEFLECTED
+  [92m  [PASS][0m 0x9e (10011110): DEFLECTED
+  [92m  [PASS][0m 0xa7 (10100111): DEFLECTED
+  [92m  [PASS][0m 0xab (10101011): DEFLECTED
+  [92m  [PASS][0m 0xad (10101101): DEFLECTED
+  [92m  [PASS][0m 0xae (10101110): DEFLECTED
+  [92m  [PASS][0m 0xb3 (10110011): DEFLECTED
+  [92m  [PASS][0m 0xb5 (10110101): DEFLECTED
+  [92m  [PASS][0m 0xb6 (10110110): AUTHORIZED ← valid key
+  [92m  [PASS][0m 0xb9 (10111001): DEFLECTED
+  [92m  [PASS][0m 0xba (10111010): DEFLECTED
+  [92m  [PASS][0m 0xbc (10111100): DEFLECTED
+  [92m  [PASS][0m 0xc7 (11000111): DEFLECTED
+  [92m  [PASS][0m 0xcb (11001011): DEFLECTED
+  [92m  [PASS][0m 0xcd (11001101): DEFLECTED
+  [92m  [PASS][0m 0xce (11001110): DEFLECTED
+  [92m  [PASS][0m 0xd3 (11010011): DEFLECTED
+  [92m  [PASS][0m 0xd5 (11010101): DEFLECTED
+  [92m  [PASS][0m 0xd6 (11010110): DEFLECTED
+  [92m  [PASS][0m 0xd9 (11011001): DEFLECTED
+  [92m  [PASS][0m 0xda (11011010): DEFLECTED
+  [92m  [PASS][0m 0xdc (11011100): DEFLECTED
+  [92m  [PASS][0m 0xe3 (11100011): DEFLECTED
+  [92m  [PASS][0m 0xe5 (11100101): DEFLECTED
+  [92m  [PASS][0m 0xe6 (11100110): DEFLECTED
+  [92m  [PASS][0m 0xe9 (11101001): DEFLECTED
+  [92m  [PASS][0m 0xea (11101010): DEFLECTED
+  [92m  [PASS][0m 0xec (11101100): DEFLECTED
+  [92m  [PASS][0m 0xf1 (11110001): DEFLECTED
+  [92m  [PASS][0m 0xf2 (11110010): DEFLECTED
+  [92m  [PASS][0m 0xf4 (11110100): DEFLECTED
+  [92m  [PASS][0m 0xf8 (11111000): DEFLECTED
+  [2m  [INFO][0m Results: 1 authorized, 55 deflected, 0 breaches
+  [92m[1m  ✓ TEST 11: HAMMING WEIGHT: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 12: PARTIAL NIBBLE MATCH — HALF-KEY ATTACK
+========================================================================[0m
+  [2m  [INFO][0m Valid key: 0xb6 | Upper nibble: 0xb | Lower nibble: 0x6
+  [1m[95m--- Upper Nibble Match (0xBx) — 16 keys ---[0m
+  [92m  [PASS][0m 0xb0 (10110000): LOCKED
+  [92m  [PASS][0m 0xb1 (10110001): LOCKED
+  [92m  [PASS][0m 0xb2 (10110010): LOCKED
+  [92m  [PASS][0m 0xb3 (10110011): LOCKED
+  [92m  [PASS][0m 0xb4 (10110100): LOCKED
+  [92m  [PASS][0m 0xb5 (10110101): LOCKED
+  [92m  [PASS][0m 0xb6 (10110110): VERIFIED ← VALID KEY
+  [92m  [PASS][0m 0xb7 (10110111): LOCKED
+  [92m  [PASS][0m 0xb8 (10111000): LOCKED
+  [92m  [PASS][0m 0xb9 (10111001): LOCKED
+  [92m  [PASS][0m 0xba (10111010): LOCKED
+  [92m  [PASS][0m 0xbb (10111011): LOCKED
+  [92m  [PASS][0m 0xbc (10111100): LOCKED
+  [92m  [PASS][0m 0xbd (10111101): LOCKED
+  [92m  [PASS][0m 0xbe (10111110): LOCKED
+  [92m  [PASS][0m 0xbf (10111111): LOCKED
+  [1m[95m--- Lower Nibble Match (0xx6) — 16 keys ---[0m
+  [92m  [PASS][0m 0x6 (00000110): LOCKED
+  [92m  [PASS][0m 0x16 (00010110): LOCKED
+  [92m  [PASS][0m 0x26 (00100110): LOCKED
+  [92m  [PASS][0m 0x36 (00110110): LOCKED
+  [92m  [PASS][0m 0x46 (01000110): LOCKED
+  [92m  [PASS][0m 0x56 (01010110): LOCKED
+  [92m  [PASS][0m 0x66 (01100110): LOCKED
+  [92m  [PASS][0m 0x76 (01110110): LOCKED
+  [92m  [PASS][0m 0x86 (10000110): LOCKED
+  [92m  [PASS][0m 0x96 (10010110): LOCKED
+  [92m  [PASS][0m 0xa6 (10100110): LOCKED
+  [92m  [PASS][0m 0xb6 (10110110): VERIFIED ← VALID KEY
+  [92m  [PASS][0m 0xc6 (11000110): LOCKED
+  [92m  [PASS][0m 0xd6 (11010110): LOCKED
+  [92m  [PASS][0m 0xe6 (11100110): LOCKED
+  [92m  [PASS][0m 0xf6 (11110110): LOCKED
+  [92m[1m  ✓ TEST 12: NIBBLE ATTACK: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 13: GLOW-SEGMENT COHERENCE — FULL 256-KEY AUDIT
+========================================================================[0m
+  [2m  [INFO][0m For EVERY input: if seg=VERIFIED then glow must=ACTIVE.
+  [2m  [INFO][0m                  if seg=LOCKED   then glow must=DORMANT.
+  [2m  [INFO][0m Mixed states are a hardware defect. Sweeping all 256...
+
+  [92m  [PASS][0m All 256 keys: segment and glow COHERENT (256/256)
+  [92m[1m  ✓ TEST 13: GLOW COHERENCE: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 14: LONG DURATION HOLD — 1000-CYCLE STABILITY
+========================================================================[0m
+  [1m[95m--- Phase 1: Hold LOCKED (0x00) for 1000 cycles ---[0m
+  [92m  [PASS][0m LOCKED stable for 1000 cycles
+  [1m[95m--- Phase 2: Hold VERIFIED (0xB6) for 1000 cycles ---[0m
+  [92m  [PASS][0m VERIFIED stable for 1000 cycles
+  [1m[95m--- Phase 3: Hold INVALID (0x49) for 1000 cycles ---[0m
+  [92m  [PASS][0m INVALID key 0x49 stayed LOCKED for 1000 cycles
+  [2m  [INFO][0m Total cycles evaluated: 3000
+  [92m[1m  ✓ TEST 14: LONG HOLD: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 15: INPUT TRANSITION COVERAGE — EDGE PAIR ANALYSIS
+========================================================================[0m
+  [2m  [INFO][0m Testing 18 critical input transitions...
+  [2m  [INFO][0m Each transition: apply FROM, then TO, verify TO output is correct.
+
+  [92m  [PASS][0m     0x00 → 0xB6  [Zero → Valid key........................] → VERIFIED
+  [92m  [PASS][0m     0xFF → 0xB6  [All-ones → Valid key....................] → VERIFIED
+  [92m  [PASS][0m     0xB6 → 0x00  [Valid key → Zero........................] → LOCKED
+  [92m  [PASS][0m     0xB6 → 0xFF  [Valid key → All-ones....................] → LOCKED
+  [92m  [PASS][0m     0xB6 → 0xB7  [Valid key → H1 neighbor.................] → LOCKED
+  [92m  [PASS][0m     0xB7 → 0xB6  [H1 neighbor → Valid key.................] → VERIFIED
+  [92m  [PASS][0m     0x49 → 0xB6  [Complement → Valid key..................] → VERIFIED
+  [92m  [PASS][0m     0xB6 → 0x49  [Valid key → Complement..................] → LOCKED
+  [92m  [PASS][0m     0x00 → 0xFF  [Zero → All-ones.........................] → LOCKED
+  [92m  [PASS][0m     0xFF → 0x00  [All-ones → Zero.........................] → LOCKED
+  [92m  [PASS][0m     0x01 → 0x02  [Walking-1 step..........................] → LOCKED
+  [92m  [PASS][0m     0x55 → 0xAA  [Alternating pattern swap................] → LOCKED
+  [92m  [PASS][0m     0xAA → 0x55  [Alternating pattern swap (reverse)......] → LOCKED
+  [92m  [PASS][0m     0xB5 → 0xB6  [H1 below → Valid key....................] → VERIFIED
+  [92m  [PASS][0m     0xB6 → 0xB5  [Valid key → H1 below....................] → LOCKED
+  [92m  [PASS][0m     0x00 → 0x00  [Zero → Zero (no change).................] → LOCKED
+  [92m  [PASS][0m     0xB6 → 0xB6  [Valid → Valid (no change)...............] → VERIFIED
+  [92m  [PASS][0m     0xFF → 0xFF  [All-ones → All-ones (no change).........] → LOCKED
+  [92m[1m  ✓ TEST 15: TRANSITION COVERAGE: PASSED[0m
+
+[1m[96m========================================================================
+  TEST 16: RING OSCILLATOR — SILICON FINGERPRINT (50-70 MHz)
+========================================================================[0m
+  [1m[95m--- Phase 1: Ring Oscillator Disabled (uio_in[0]=0) ---[0m
+  [2m  [INFO][0m Key: 0x00, uio_in[0]=0 → uio_out=0x0
+  [92m  [PASS][0m Oscillator disabled: uio_out shows GLOW_DORMANT (0x00)
+  [2m  [INFO][0m Key: 0xB6, uio_in[0]=0 → uio_out=0xff
+  [92m  [PASS][0m Oscillator disabled: uio_out shows GLOW_ACTIVE (0xFF)
+  [1m[95m--- Phase 2: Ring Oscillator Enabled (uio_in[0]=1) ---[0m
+  [2m  [INFO][0m Initial counter output: 0x0
+  [2m  [INFO][0m After 10 µs: counter output = 0x58
+  [2m  [INFO][0m Simulated 600 oscillations (60 MHz)
+  [92m  [PASS][0m Frequency 60 MHz is in valid range (50-70 MHz)
+  [1m[95m--- Phase 3: Frequency Range Validation ---[0m
+  [2m  [INFO][0m Expected range: 50-70 MHz (IHP 130nm SG13G2)
+  [2m  [INFO][0m Simulated frequency: 60 MHz
+  [2m  [INFO][0m This frequency signature validates chip fabrication authenticity.
+  [2m  [INFO][0m A chip fabricated on wrong process will show different frequency.
+  [92m  [PASS][0m Ring oscillator validation PASSED — frequency in expected range
+  [92m[1m  ✓ TEST 16: RING OSCILLATOR: PASSED[0m
+
+[1m[96m========================================================================
+  SENTINEL INTERROGATION — FINAL SCOREBOARD
+========================================================================[0m
+
+  [[92mPASS[0m]  TEST  1: Authorization — Golden Path
+  [[92mPASS[0m]  TEST  2: Intrusion — 256-Key Sweep
+  [[92mPASS[0m]  TEST  3: Reset Behavior — Cold Start
+  [[92mPASS[0m]  TEST  4: Hamming-1 Adjacency Attack
+  [[92mPASS[0m]  TEST  5: UIO Direction Integrity
+  [[92mPASS[0m]  TEST  6: Rapid Cycling Stress
+  [[92mPASS[0m]  TEST  7: Hamming-2 Double-Bit Attack
+  [[92mPASS[0m]  TEST  8: Walking Ones/Zeros Bus Scan
+  [[92mPASS[0m]  TEST  9: Segment Encoding Fidelity
+  [[92mPASS[0m]  TEST 10: Transform & Complement Rejection
+  [[92mPASS[0m]  TEST 11: Hamming Weight — Same-Weight Keys
+  [[92mPASS[0m]  TEST 12: Partial Nibble Match Attack
+  [[92mPASS[0m]  TEST 13: Glow-Segment Coherence Audit
+  [[92mPASS[0m]  TEST 14: Long Duration Hold (3000 cycles)
+  [[92mPASS[0m]  TEST 15: Input Transition Coverage
+  [[92mPASS[0m]  TEST 16: Ring Oscillator — Silicon Fingerprint
+
+  [1m────────────────────────────────────────[0m
+  [1m  TOTAL: 16  |  PASSED: [92m16[0m[1m  |  FAILED: [91m0[0m
+
+  [92m[1m  ✓ ALL TESTS PASSED — SENTINEL LOGIC VERIFIED[0m
+  [2m  Software model confirmed. Run 'cd test && make -B' for RTL simulation.[0m
+
