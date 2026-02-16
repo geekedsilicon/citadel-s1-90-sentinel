@@ -73,37 +73,37 @@ module ring_oscillator (
     `else
         // RTL simulation: behavioral inverters
         // Use combinational logic with keep attribute to prevent optimization
-        (* keep *) assign ring_chain[0]  = ~ring_chain[30];
-        (* keep *) assign ring_chain[1]  = ~ring_chain[0];
-        (* keep *) assign ring_chain[2]  = ~ring_chain[1];
-        (* keep *) assign ring_chain[3]  = ~ring_chain[2];
-        (* keep *) assign ring_chain[4]  = ~ring_chain[3];
-        (* keep *) assign ring_chain[5]  = ~ring_chain[4];
-        (* keep *) assign ring_chain[6]  = ~ring_chain[5];
-        (* keep *) assign ring_chain[7]  = ~ring_chain[6];
-        (* keep *) assign ring_chain[8]  = ~ring_chain[7];
-        (* keep *) assign ring_chain[9]  = ~ring_chain[8];
-        (* keep *) assign ring_chain[10] = ~ring_chain[9];
-        (* keep *) assign ring_chain[11] = ~ring_chain[10];
-        (* keep *) assign ring_chain[12] = ~ring_chain[11];
-        (* keep *) assign ring_chain[13] = ~ring_chain[12];
-        (* keep *) assign ring_chain[14] = ~ring_chain[13];
-        (* keep *) assign ring_chain[15] = ~ring_chain[14];
-        (* keep *) assign ring_chain[16] = ~ring_chain[15];
-        (* keep *) assign ring_chain[17] = ~ring_chain[16];
-        (* keep *) assign ring_chain[18] = ~ring_chain[17];
-        (* keep *) assign ring_chain[19] = ~ring_chain[18];
-        (* keep *) assign ring_chain[20] = ~ring_chain[19];
-        (* keep *) assign ring_chain[21] = ~ring_chain[20];
-        (* keep *) assign ring_chain[22] = ~ring_chain[21];
-        (* keep *) assign ring_chain[23] = ~ring_chain[22];
-        (* keep *) assign ring_chain[24] = ~ring_chain[23];
-        (* keep *) assign ring_chain[25] = ~ring_chain[24];
-        (* keep *) assign ring_chain[26] = ~ring_chain[25];
-        (* keep *) assign ring_chain[27] = ~ring_chain[26];
-        (* keep *) assign ring_chain[28] = ~ring_chain[27];
-        (* keep *) assign ring_chain[29] = ~ring_chain[28];
-        (* keep *) assign ring_chain[30] = ~ring_chain[29];
+        assign ring_chain[0]  = ~ring_chain[30];
+        assign ring_chain[1]  = ~ring_chain[0];
+        assign ring_chain[2]  = ~ring_chain[1];
+        assign ring_chain[3]  = ~ring_chain[2];
+        assign ring_chain[4]  = ~ring_chain[3];
+        assign ring_chain[5]  = ~ring_chain[4];
+        assign ring_chain[6]  = ~ring_chain[5];
+        assign ring_chain[7]  = ~ring_chain[6];
+        assign ring_chain[8]  = ~ring_chain[7];
+        assign ring_chain[9]  = ~ring_chain[8];
+        assign ring_chain[10] = ~ring_chain[9];
+        assign ring_chain[11] = ~ring_chain[10];
+        assign ring_chain[12] = ~ring_chain[11];
+        assign ring_chain[13] = ~ring_chain[12];
+        assign ring_chain[14] = ~ring_chain[13];
+        assign ring_chain[15] = ~ring_chain[14];
+        assign ring_chain[16] = ~ring_chain[15];
+        assign ring_chain[17] = ~ring_chain[16];
+        assign ring_chain[18] = ~ring_chain[17];
+        assign ring_chain[19] = ~ring_chain[18];
+        assign ring_chain[20] = ~ring_chain[19];
+        assign ring_chain[21] = ~ring_chain[20];
+        assign ring_chain[22] = ~ring_chain[21];
+        assign ring_chain[23] = ~ring_chain[22];
+        assign ring_chain[24] = ~ring_chain[23];
+        assign ring_chain[25] = ~ring_chain[24];
+        assign ring_chain[26] = ~ring_chain[25];
+        assign ring_chain[27] = ~ring_chain[26];
+        assign ring_chain[28] = ~ring_chain[27];
+        assign ring_chain[29] = ~ring_chain[28];
+        assign ring_chain[30] = ~ring_chain[29];
     `endif
 
     // Oscillator output (tap from the ring)

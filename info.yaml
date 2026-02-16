@@ -20,10 +20,13 @@ project:
   # Custom Verilog project configuration
   top_module: "tt_um_vaelix_sentinel"
   source_files:
-    - tt_um_vaelix_sentinel.v
-    - cells.v
-    - project.v
-
+    - "tt_um_vaelix_sentinel.v"
+    - "project.v"
+    - "cells.v"
+    - "debouncer.v"
+    - "glitch_detector.v"
+    - "ring_oscillator.v"
+    - "techmap_citadel_sg13g2.v"
   # Footprint: Standard 1x1 Tile for High-Yield Fabrication
   tiles: "1x1"
 

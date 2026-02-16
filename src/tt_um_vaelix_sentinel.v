@@ -25,6 +25,7 @@
  */
 `default_nettype none
 
+(* keep_hierarchy *)
 module tt_um_vaelix_sentinel (
     input  wire [7:0] ui_in,    // Dedicated inputs  — Key Interface
     output wire [7:0] uo_out,   // Dedicated outputs — Display Interface
@@ -42,8 +43,8 @@ module tt_um_vaelix_sentinel (
      * NORMAL: Standard operation (authorization checking)
      * BRICK:  Tamper-detected state (system unresponsive)
      */
-    localparam logic STATE_NORMAL = 1'b0;
-    localparam logic STATE_BRICK  = 1'b1;
+    localparam STATE_NORMAL = 1'b0;
+    localparam STATE_BRICK  = 1'b1;
     
     reg current_state;
     reg [6:0] uio_in_prev;
@@ -56,7 +57,7 @@ module tt_um_vaelix_sentinel (
     
     /* ---------------------------------------------------------------------
      * 2. AUTHORIZATION LOGIC
-     * 1. GERLINSKY GUARD: VOLTAGE GLITCH DETECTOR
+     *    (See Gerlinsky Guard below)
      * ---------------------------------------------------------------------
      * The Gerlinsky Guard detects voltage glitches by monitoring propagation
      * delay changes in a buffer chain. If a glitch is detected, it forces
@@ -263,11 +264,11 @@ module tt_um_vaelix_sentinel (
      * for synthesis constants. wire-with-init is valid in Yosys but is not
      * portable and is semantically misleading (these are not driven nets).
      */
-    localparam logic [7:0] SegLocked   = 8'hC7;
-    localparam logic [7:0] SegVerified = 8'hC1;
-    localparam logic [7:0] SegHardLock = 8'hC9;
-    localparam logic [7:0] SegOff      = 8'hFF;
-    localparam logic [7:0] SegBrick    = 8'h00;  // All Dark (BRICK state)
+    localparam [7:0] SegLocked   = 8'hC7;
+    localparam [7:0] SegVerified = 8'hC1;
+    localparam [7:0] SegHardLock = 8'hC9;
+    localparam [7:0] SegOff      = 8'hFF;
+    localparam [7:0] SegBrick    = 8'h00;  // All Dark (BRICK state)
 
     // In BRICK state, output is all dark (0x00), input logic disabled
     // Otherwise, normal authorization logic applies

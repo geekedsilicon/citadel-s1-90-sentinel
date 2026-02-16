@@ -28,6 +28,7 @@
 
 `default_nettype none
 
+(* keep_hierarchy *)
 module debouncer #(
     parameter DEBOUNCE_CYCLES  = 4,
     parameter ATTACK_WINDOW    = 100,
