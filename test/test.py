@@ -26,6 +26,7 @@ import sys
 VAELIX_KEY      = 0xB6   # The one true key: 1011_0110
 SEG_LOCKED      = 0xC7   # 7-Segment 'L' (Active-LOW, Common Anode)
 SEG_VERIFIED    = 0xC1   # 7-Segment 'U' (Active-LOW, Common Anode)
+SEG_HARD_LOCK   = 0xC9   # 7-Segment 'H' (Active-LOW, Common Anode)
 GLOW_ACTIVE     = 0xFF   # All status LEDs ignited
 GLOW_DORMANT    = 0x00   # All status LEDs dark
 UIO_ALL_OUTPUT  = 0xFF   # All bidirectional pins driven as output
@@ -43,27 +44,91 @@ CLOCK_PERIOD_NS = 40     # 25 MHz = 40ns period
 
 class SentinelModel:
     """
-    Pure Python behavioral model of the Sentinel Lock.
-    Mirrors the Verilog combinational logic exactly.
+    Pure Python behavioral model of the Sentinel Lock FSM.
+    Mirrors the Verilog FSM state machine with Hamming distance hardening.
+    
+    TASK XVII: THE TARNOVSKY TOKEN (Laser Fault Hardening)
     """
+    
+    # State encodings with wide Hamming distance
+    STATE_LOCKED    = 0xA5  # 8'b1010_0101
+    STATE_VERIFIED  = 0x5A  # 8'b0101_1010
+    STATE_HARD_LOCK = 0x00  # 8'b0000_0000
 
     def __init__(self):
         self.ui_in   = 0x00
+        self.state   = self.STATE_LOCKED  # FSM state
         self.uo_out  = SEG_LOCKED
         self.uio_out = GLOW_DORMANT
         self.uio_oe  = UIO_ALL_OUTPUT
 
-    def evaluate(self, key_input):
-        """Combinational: no clock needed. Input → Output, instant."""
+    def reset(self):
+        """Power-on reset: return to LOCKED state."""
+        self.state = self.STATE_LOCKED
+        self._update_outputs()
+
+    def clock(self, key_input):
+        """
+        Clock cycle: update state based on current input.
+        This simulates the sequential FSM behavior.
+        """
         self.ui_in = key_input & 0xFF
-        if self.ui_in == VAELIX_KEY:
-            self.uo_out  = SEG_VERIFIED
-            self.uio_out = GLOW_ACTIVE
+        is_authorized = (self.ui_in == VAELIX_KEY)
+        
+        # State transition logic (combinational next-state logic)
+        if self.state == self.STATE_LOCKED:
+            if is_authorized:
+                self.state = self.STATE_VERIFIED
+            else:
+                self.state = self.STATE_LOCKED
+        elif self.state == self.STATE_VERIFIED:
+            # Return to LOCKED when key is removed
+            if is_authorized:
+                self.state = self.STATE_VERIFIED
+            else:
+                self.state = self.STATE_LOCKED
+        elif self.state == self.STATE_HARD_LOCK:
+            # HARD_LOCK is terminal - only reset can escape
+            self.state = self.STATE_HARD_LOCK
         else:
+            # Default case: any invalid state triggers HARD_LOCK
+            self.state = self.STATE_HARD_LOCK
+        
+        self._update_outputs()
+        return self.uo_out, self.uio_out, self.uio_oe
+
+    def _update_outputs(self):
+        """Update outputs based on current state."""
+        if self.state == self.STATE_LOCKED:
             self.uo_out  = SEG_LOCKED
             self.uio_out = GLOW_DORMANT
+        elif self.state == self.STATE_VERIFIED:
+            self.uo_out  = SEG_VERIFIED
+            self.uio_out = GLOW_ACTIVE
+        elif self.state == self.STATE_HARD_LOCK:
+            self.uo_out  = SEG_HARD_LOCK
+            self.uio_out = GLOW_DORMANT
+        else:
+            # Any invalid state shows HARD_LOCK
+            self.uo_out  = SEG_HARD_LOCK
+            self.uio_out = GLOW_DORMANT
         self.uio_oe = UIO_ALL_OUTPUT
+    
+    def inject_fault(self, corrupted_state):
+        """
+        Simulate a laser fault injection attack.
+        Directly corrupt the state register to simulate bit-flip.
+        """
+        self.state = corrupted_state & 0xFF
+        self._update_outputs()
         return self.uo_out, self.uio_out, self.uio_oe
+
+    def evaluate(self, key_input):
+        """
+        Legacy interface for backward compatibility with old tests.
+        Single-cycle evaluation: clock with input.
+        """
+        return self.clock(key_input)
 
 
 # ============================================================================
@@ -792,6 +857,127 @@ def run_test_15():
     return errors == 0
 
 
+def run_test_16():
+    """TEST 16: LASER FAULT INJECTION — TASK XVII: THE TARNOVSKY TOKEN"""
+    Console.header("TEST 16: LASER FAULT INJECTION — HARD_LOCK TRIGGER")
+    Console.info("TASK XVII: THE TARNOVSKY TOKEN (Laser Fault Hardening)")
+    Console.info("Testing FSM response to bit-flip attacks on state register.")
+    Console.info("")
+    Console.info("State Encodings:")
+    Console.info(f"  LOCKED    = 0xA5 = {bin(0xA5)[2:].zfill(8)}")
+    Console.info(f"  VERIFIED  = 0x5A = {bin(0x5A)[2:].zfill(8)}")
+    Console.info(f"  HARD_LOCK = 0x00 = {bin(0x00)[2:].zfill(8)}")
+    Console.info("")
+    Console.info("Any state corruption should trigger HARD_LOCK (0x00).")
+    Console.info("HARD_LOCK is terminal — only power cycle (reset) can escape.")
+    print()
+    
+    s = SentinelModel()
+    errors = 0
+
+    # Test 1: Single-bit flips from LOCKED state (0xA5)
+    Console.subheader("Phase 1: Laser Attack on LOCKED State (0xA5)")
+    s.reset()  # Start from LOCKED
+    for bit in range(8):
+        corrupted = 0xA5 ^ (1 << bit)
+        if corrupted == 0xA5:
+            continue  # Skip if no change
+        
+        Console.info(f"Flipping bit {bit} of LOCKED: 0xA5 → 0x{corrupted:02X} ({bin(corrupted)[2:].zfill(8)})")
+        seg, glow, oe = s.inject_fault(corrupted)
+        
+        # After fault injection, the FSM should be in HARD_LOCK
+        if seg == SEG_HARD_LOCK and glow == GLOW_DORMANT:
+            Console.passed(f"  Fault detected! → HARD_LOCK (seg={hex(seg)})")
+        else:
+            Console.failed(f"  SECURITY BREACH! Expected HARD_LOCK, got seg={hex(seg)} glow={hex(glow)}")
+            errors += 1
+        
+        # Try to clock with valid key - should remain in HARD_LOCK
+        seg, glow, oe = s.clock(VAELIX_KEY)
+        if seg == SEG_HARD_LOCK:
+            Console.passed(f"  HARD_LOCK is terminal (cannot escape with key)")
+        else:
+            Console.failed(f"  HARD_LOCK ESCAPE! State changed to seg={hex(seg)}")
+            errors += 1
+        
+        # Reset for next test
+        s.reset()
+
+    # Test 2: Single-bit flips from VERIFIED state (0x5A)
+    Console.subheader("Phase 2: Laser Attack on VERIFIED State (0x5A)")
+    s.reset()
+    s.clock(VAELIX_KEY)  # Move to VERIFIED
+    for bit in range(8):
+        corrupted = 0x5A ^ (1 << bit)
+        if corrupted == 0x5A:
+            continue
+        
+        Console.info(f"Flipping bit {bit} of VERIFIED: 0x5A → 0x{corrupted:02X} ({bin(corrupted)[2:].zfill(8)})")
+        seg, glow, oe = s.inject_fault(corrupted)
+        
+        if seg == SEG_HARD_LOCK and glow == GLOW_DORMANT:
+            Console.passed(f"  Fault detected! → HARD_LOCK")
+        else:
+            Console.failed(f"  BREACH! Expected HARD_LOCK, got seg={hex(seg)}")
+            errors += 1
+        
+        # Reset and re-verify for next test
+        s.reset()
+        s.clock(VAELIX_KEY)
+
+    # Test 3: Random invalid states
+    Console.subheader("Phase 3: Random Invalid State Injection")
+    invalid_states = [0x01, 0x02, 0x7F, 0xFF, 0xA4, 0xA6, 0x59, 0x5B, 0x42, 0x3C]
+    for invalid in invalid_states:
+        if invalid in [0xA5, 0x5A, 0x00]:
+            continue  # Skip valid states
+        
+        Console.info(f"Injecting invalid state: 0x{invalid:02X} ({bin(invalid)[2:].zfill(8)})")
+        s.reset()
+        seg, glow, oe = s.inject_fault(invalid)
+        
+        if seg == SEG_HARD_LOCK:
+            Console.passed(f"  Invalid state 0x{invalid:02X} → HARD_LOCK")
+        else:
+            Console.failed(f"  BREACH! State 0x{invalid:02X} produced seg={hex(seg)}")
+            errors += 1
+
+    # Test 4: Reset recovery from HARD_LOCK
+    Console.subheader("Phase 4: Recovery via Reset (Power Cycle)")
+    s.reset()
+    s.inject_fault(0xAB)  # Corrupt state
+    Console.info("State corrupted to 0xAB → HARD_LOCK")
+    
+    seg, glow, oe = s.clock(VAELIX_KEY)
+    if seg == SEG_HARD_LOCK:
+        Console.passed("HARD_LOCK persists despite valid key")
+    else:
+        Console.failed(f"HARD_LOCK escaped with key! seg={hex(seg)}")
+        errors += 1
+    
+    # Now reset (power cycle)
+    s.reset()
+    Console.info("Power cycle (reset) applied")
+    seg, glow, oe = s.clock(0x00)
+    if seg == SEG_LOCKED:
+        Console.passed("After reset: LOCKED state restored")
+    else:
+        Console.failed(f"Reset failed! seg={hex(seg)}")
+        errors += 1
+    
+    # Verify normal operation after reset
+    seg, glow, oe = s.clock(VAELIX_KEY)
+    if seg == SEG_VERIFIED:
+        Console.passed("After reset: Normal authorization works")
+    else:
+        Console.failed(f"Post-reset auth failed! seg={hex(seg)}")
+        errors += 1
+
+    Console.result("TEST 16: LASER FAULT INJECTION", errors == 0)
+    return errors == 0
+
+
 # ============================================================================
 # STANDALONE MAIN — RUN ALL TESTS WITH FULL CONSOLE OUTPUT
 # ============================================================================
@@ -815,6 +1001,7 @@ def main():
         ("TEST 13: Glow-Segment Coherence Audit",      run_test_13),
         ("TEST 14: Long Duration Hold (3000 cycles)",   run_test_14),
         ("TEST 15: Input Transition Coverage",          run_test_15),
+        ("TEST 16: Laser Fault Injection — HARD_LOCK",  run_test_16),
     ]
 
     results  = []

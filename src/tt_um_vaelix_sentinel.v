@@ -103,9 +103,11 @@ module tt_um_vaelix_sentinel (
             end
             
             STATE_VERIFIED: begin
-                // Once verified, remain verified until reset
-                // (In a real system, could add timeout or re-verification)
-                next_state = STATE_VERIFIED;
+                // Return to LOCKED when key is removed (re-verification required)
+                if (is_authorized)
+                    next_state = STATE_VERIFIED;
+                else
+                    next_state = STATE_LOCKED;
             end
             
             STATE_HARD_LOCK: begin
