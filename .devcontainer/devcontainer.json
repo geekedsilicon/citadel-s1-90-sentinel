@@ -1,22 +1,64 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.183.0/containers/ubuntu
+// ==============================================================================
+// VAELIX | SENTINEL MARK I — CONTROL ROOM
+// ==============================================================================
+// FILE:      .devcontainer/devcontainer.json
+// VERSION:   1.1.0 — Citadel Standard
+// TARGET:    VS Code Remote Container / GitHub Codespaces
+// REPO:      citadel-s1-90-sentinel
+//
+// PURPOSE:
+//   Unified development environment for the S1-90 Digital Twin.
+//   Maintains full toolchain parity with citadel-s1-90-core to ensure
+//   seamless transition between Wokwi visualization and ASIC verification.
+//
+// MEMORY:
+//   10GB reserved for LibreLane detailed routing and parasitic extraction.
+//   Do not reduce — synthesis will OOM on dense designs.
+//
+// EXTENSION MANIFEST (must match .vscode/extensions.json):
+//   mshr-h.veriloghdl        — RTL syntax, Verilator linting, hover defs
+//   chipsalliance.verible    — Verilog formatter (Vaelix alignment standard)
+//   surfer-project.surfer    — FST/VCD waveform viewer (inline, no GTKWave needed)
+//   ms-python.python         — test.py / cocotb IntelliSense and debugging
+//   redhat.vscode-yaml       — info.yaml schema validation
+//
+// INITIALIZATION SEQUENCE:
+//   postCreateCommand — Activates Python venv on every new shell (once at create)
+//   postStartCommand  — Syncs tt-support-tools on every container start
+//
+// FIX LOG:
+//   v1.1.0 — [MODERATE] Extension list expanded to full 5-extension Citadel manifest
+//   v1.1.0 — [MODERATE] postCreateCommand restored (venv activation was missing)
+//   v1.1.0 — [ADVISORY] Inline JSON comments consolidated to header block
+//   v1.1.0 — Container renamed: "Tiny Tapeout Dev Container" -> "VAELIX | SENTINEL MARK I"
+// ==============================================================================
 {
-  "name": "Tiny Tapeout Dev Container",
+  "name": "VAELIX | SENTINEL MARK I - CONTROL ROOM",
+
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
+
   "runArgs": [
     "--memory=10GB"
   ],
+
   "customizations": {
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"
       },
-      "extensions": ["mshr-h.veriloghdl", "surfer-project.surfer"]
+      "extensions": [
+        "mshr-h.veriloghdl",
+        "chipsalliance.verible",
+        "surfer-project.surfer",
+        "ms-python.python",
+        "redhat.vscode-yaml"
+      ]
     }
   },
+
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": true,
@@ -25,5 +67,7 @@
       "dockerDashComposeVersion": "none"
     }
   },
+
+  "postCreateCommand": "echo 'source /ttsetup/venv/bin/activate' >> ~/.bashrc",
   "postStartCommand": "/ttsetup/copy_tt_support_tools.sh"
 }
