@@ -123,6 +123,7 @@ async def test_glitch_hunter(dut):
                     dut._log.error("="*72)
                     dut._log.error("🚨 GLITCH DETECTED! CITADEL BREACHED! 🚨")
                     dut._log.error("="*72)
+                    # Log in both ps and ns per TASK VIII requirement for exact picosecond timestamp
                     dut._log.error(f"Timestamp: {timestamp_ps} ps ({timestamp_ns} ns)")
                     dut._log.error(f"Input (ui_in): {hex(current_input)} (Expected ONLY {hex(VAELIX_KEY)})")
                     dut._log.error(f"Output (uo_out): {hex(current_output)} (VERIFIED - UNAUTHORIZED!)")
