@@ -210,3 +210,103 @@ async def test_sentinel_bitflip_adjacency(dut):
         dut._log.info(f"  [PASS] Bit {bit} flip ({hex(mutant_key)}): DEFLECTED")
 
     dut._log.info("VAELIX SENTINEL | TEST 4: COMPLETE — NO ADJACENT KEY LEAKAGE")
+
+# ============================================================================
+# TEST 5: UIO DIRECTION INTEGRITY — OUTPUT ENABLE VERIFICATION
+# ============================================================================
+@cocotb.test()
+async def test_sentinel_uio_direction(dut):
+    """
+    The Vaelix Glow status array (uio_out) must always be driven as
+    OUTPUT. This means uio_oe must be 0xFF at all times — locked or
+    unlocked. A floating bidirectional pin is a security vulnerability.
+    """
+    dut._log.info("VAELIX SENTINEL | TEST 5: UIO DIRECTION INTEGRITY")
+
+    clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    await reset_sentinel(dut)
+
+    UIO_ALL_OUTPUT = 0xFF
+
+    # --- Phase 1: Check OE in LOCKED state ---
+    dut.ui_in.value = 0x00
+    await ClockCycles(dut.clk, 1)
+    assert dut.uio_oe.value == UIO_ALL_OUTPUT, \
+        f"OE FAILURE (LOCKED): Expected {hex(UIO_ALL_OUTPUT)}, got {hex(int(dut.uio_oe.value))}"
+    dut._log.info("  [PASS] Locked state: uio_oe = 0xFF (all outputs)")
+
+    # --- Phase 2: Check OE in VERIFIED state ---
+    dut.ui_in.value = VAELIX_KEY
+    await ClockCycles(dut.clk, 1)
+    assert dut.uio_oe.value == UIO_ALL_OUTPUT, \
+        f"OE FAILURE (VERIFIED): Expected {hex(UIO_ALL_OUTPUT)}, got {hex(int(dut.uio_oe.value))}"
+    dut._log.info("  [PASS] Verified state: uio_oe = 0xFF (all outputs)")
+
+    # --- Phase 3: Sweep random inputs, OE must never change ---
+    test_vectors = [0x00, 0xFF, 0xB6, 0xB7, 0x49, 0xA5, 0x5A, 0x01]
+    for vec in test_vectors:
+        dut.ui_in.value = vec
+        await ClockCycles(dut.clk, 1)
+        assert dut.uio_oe.value == UIO_ALL_OUTPUT, \
+            f"OE DRIFT at input {hex(vec)}: Got {hex(int(dut.uio_oe.value))}"
+
+    dut._log.info("  [PASS] OE stable across all input vectors")
+    dut._log.info("VAELIX SENTINEL | TEST 5: COMPLETE — NO FLOATING PINS")
+
+
+# ============================================================================
+# TEST 6: RAPID KEY CYCLING — COMBINATIONAL STABILITY STRESS
+# ============================================================================
+@cocotb.test()
+async def test_sentinel_rapid_cycling(dut):
+    """
+    Rapidly alternates between the valid key and invalid keys for 200
+    cycles. The Sentinel is pure combinational logic — every single
+    transition must be clean with zero latching or glitch artifacts.
+    This simulates a noisy DIP switch or an adversarial key scanner.
+    """
+    dut._log.info("VAELIX SENTINEL | TEST 6: RAPID CYCLING STRESS TEST")
+
+    clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    await reset_sentinel(dut)
+
+    CYCLES         = 200
+    invalid_keys   = [0x00, 0xFF, 0xB7, 0xB4, 0x49, 0xA6, 0x36, 0x96]
+    error_count    = 0
+
+    for i in range(CYCLES):
+        # --- Inject valid key ---
+        dut.ui_in.value = VAELIX_KEY
+        await ClockCycles(dut.clk, 1)
+        if int(dut.uo_out.value) != SEG_VERIFIED:
+            error_count += 1
+            dut._log.error(f"  Cycle {i}: VERIFIED expected, got {hex(int(dut.uo_out.value))}")
+        if int(dut.uio_out.value) != GLOW_ACTIVE:
+            error_count += 1
+            dut._log.error(f"  Cycle {i}: GLOW expected, got {hex(int(dut.uio_out.value))}")
+
+        # --- Inject invalid key (round-robin from list) ---
+        bad_key = invalid_keys[i % len(invalid_keys)]
+        dut.ui_in.value = bad_key
+        await ClockCycles(dut.clk, 1)
+        if int(dut.uo_out.value) != SEG_LOCKED:
+            error_count += 1
+            dut._log.error(f"  Cycle {i}: LOCKED expected for {hex(bad_key)}, got {hex(int(dut.uo_out.value))}")
+        if int(dut.uio_out.value) != GLOW_DORMANT:
+            error_count += 1
+            dut._log.error(f"  Cycle {i}: DORMANT expected for {hex(bad_key)}, got {hex(int(dut.uio_out.value))}")
+
+    assert error_count == 0, \
+        f"STABILITY FAILURE: {error_count} errors in {CYCLES} rapid cycles"
+
+    dut._log.info(f"  [PASS] {CYCLES} valid/invalid cycles — zero errors, zero latching")
+    dut._log.info("VAELIX SENTINEL | TEST 6: COMPLETE — COMBINATIONAL INTEGRITY CONFIRMED")
+
+
+
+
+
