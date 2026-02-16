@@ -51,7 +51,20 @@ module tt_um_vaelix_sentinel (
     assign is_authorized = (ui_in == 8'b1011_0110);
 
     /* ---------------------------------------------------------------------
-     * 3. FSM_MAIN: Primary State Machine (posedge clk)
+     * 3. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
+     * ---------------------------------------------------------------------
+     * The 'buffer_cell' (defined in cells.v, compiled together by TT build)
+     * is our structural signature. Gating outputs with 'internal_ena'
+     * prevents synthesis tools from pruning the instance as dead logic.
+     */
+    wire internal_ena;
+    buffer_cell sys_ena (
+        .in  (ena),
+        .out (internal_ena)
+    );
+
+    /* ---------------------------------------------------------------------
+     * 4. FSM_MAIN: Primary State Machine (posedge clk)
      * ---------------------------------------------------------------------
      * Transitions to UNLOCKED when correct key is presented
      */
@@ -68,7 +81,7 @@ module tt_um_vaelix_sentinel (
     end
     
     /* ---------------------------------------------------------------------
-     * 4. FSM_SHADOW: Shadow State Machine (negedge clk)
+     * 5. FSM_SHADOW: Shadow State Machine (negedge clk)
      * ---------------------------------------------------------------------
      * Duplicate state machine clocked on falling edge for glitch detection
      */
@@ -85,7 +98,7 @@ module tt_um_vaelix_sentinel (
     end
     
     /* ---------------------------------------------------------------------
-     * 5. COMPARATOR & PANIC LOGIC
+     * 6. COMPARATOR & PANIC LOGIC
      * ---------------------------------------------------------------------
      * Detect state mismatch indicating clock glitch attack
      */
@@ -99,19 +112,6 @@ module tt_um_vaelix_sentinel (
             end
         end
     end
-    
-    /* ---------------------------------------------------------------------
-     * 6. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
-     * ---------------------------------------------------------------------
-     * The 'buffer_cell' (defined in cells.v, compiled together by TT build)
-     * is our structural signature. Gating outputs with 'internal_ena'
-     * prevents synthesis tools from pruning the instance as dead logic.
-     */
-    wire internal_ena;
-    buffer_cell sys_ena (
-        .in  (ena),
-        .out (internal_ena)
-    );
 
     /* ---------------------------------------------------------------------
      * 7. VISUAL TELEMETRY: 7-SEGMENT OUTPUT WITH TRI-STATE PANIC
