@@ -72,10 +72,11 @@ ifeq ($(COVERAGE),1)
     VERILATOR_MINOR := $(shell echo $(VERILATOR_VERSION) | cut -d. -f2)
     
     # Check if Verilator meets minimum version (5.036)
+    # Note: Verilator uses format 5.036, where 036 = 36 in version comparison
     VERILATOR_OK := $(shell [ "$(VERILATOR_MAJOR)" -gt 5 -o \( "$(VERILATOR_MAJOR)" -eq 5 -a "$(VERILATOR_MINOR)" -ge 36 \) ] && echo 1 || echo 0)
     
     ifneq ($(VERILATOR_OK),1)
-        $(error COVERAGE=1 requires Verilator 5.036+. Current: $(VERILATOR_VERSION). Install from: https://github.com/verilator/verilator)
+        $(error COVERAGE=1 requires Verilator 5.036 or later. Current: $(VERILATOR_VERSION). Install from: https://github.com/verilator/verilator)
     endif
     
     # Switch to Verilator for coverage support

@@ -86,7 +86,7 @@ class CoverageAnalyzer:
                         line_num = int(parts[0])
                         block = parts[1]
                         branch = parts[2]
-                        taken = parts[3]
+                        taken = parts[3].strip()  # Store as string, may be '-', '0', or count
                         
                         if line_num not in self.files[current_file]['branches']:
                             self.files[current_file]['branches'][line_num] = []

@@ -36,7 +36,8 @@ sudo make install
 
 # Verify installation
 verilator --version
-# Should show: Verilator 5.036 or later
+# Should show: Verilator 5.036 2024-xx-xx or later
+# Version format: MAJOR.MINOR where MINOR may have leading zeros (e.g., 5.036)
 ```
 
 ## Running Coverage Analysis
