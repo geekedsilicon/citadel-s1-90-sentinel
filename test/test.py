@@ -1372,13 +1372,13 @@ if COCOTB_AVAILABLE:
         clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
         cocotb.start_soon(clock.start())
         
-        # Seed random number generator with simulation time
+        # Initial reset
+        await reset_sentinel(dut)
+        
+        # Seed random number generator with simulation time (after reset to accumulate time)
         seed = get_sim_time(units='ns')
         random.seed(seed)
         dut._log.info(f"  RNG seeded with simulation time: {seed}ns")
-        
-        # Initial reset
-        await reset_sentinel(dut)
         
         violations = []
         
@@ -1423,8 +1423,6 @@ if COCOTB_AVAILABLE:
         # Report results
         if violations:
             dut._log.error(f"  TEST FAILED: {len(violations)} invariant violations detected")
-            for v in violations:
-                dut._log.error(f"    {v}")
             assert False, f"CHAOS MONKEY FAILURE: {len(violations)} violations"
         else:
             dut._log.info(f"  [PASS] All 1,000 cycles completed with no violations")
