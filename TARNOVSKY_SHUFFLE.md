@@ -43,7 +43,7 @@ assign reconstructed_key[2] = ~calib_val_c;  // Inverted
 
 The synthesis configuration in `src/config.json` includes optimization settings that encourage the placer to distribute the registers across the die area. While absolute placement of standard cells is handled by the OpenROAD placer, the configuration enables design optimizations that affect placement.
 
-Additional placement hints are documented in `placement_constraints.tcl` for reference during physical design.
+Additional placement strategy notes are documented in `placement_strategy_notes.tcl` for reference during physical design.
 
 ### 5. Security Documentation
 
@@ -59,7 +59,7 @@ The complete logical-to-physical mapping is documented in `key_mapping.encrypted
 4. **`info.yaml`** - Added project.v to source files
 5. **`test/Makefile`** - Added project.v to compilation sources
 6. **`key_mapping.encrypted`** (NEW) - Secure mapping documentation
-7. **`placement_constraints.tcl`** (NEW) - Physical placement documentation
+7. **`placement_strategy_notes.tcl`** (NEW) - Physical placement documentation
 
 ### Verification
 

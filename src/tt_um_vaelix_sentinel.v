@@ -38,7 +38,7 @@ module tt_um_vaelix_sentinel (
      */
     wire is_authorized;
     
-    project key_validator (
+    scattered_key_storage key_validator (
         .clk          (clk),
         .rst_n        (rst_n),
         .key_input    (ui_in),

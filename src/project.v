@@ -26,7 +26,7 @@
 
 `default_nettype none
 
-module project (
+module scattered_key_storage (
     input  wire       clk,
     input  wire       rst_n,
     input  wire [7:0] key_input,
@@ -71,34 +71,39 @@ module project (
     reg ena_ctrl_h;
 
     /* ---------------------------------------------------------------------
-     * KEY INITIALIZATION
+     * KEY INITIALIZATION WITH RESET LOGIC
      * Hardcoded Vaelix Key: 0xB6 = 10110110
      * Bits [0,2,4,6] stored inverted for visual deception
+     * Uses synchronous reset for ASIC synthesis compatibility
      * --------------------------------------------------------------------- */
-    initial begin
-        // Bit 0 of key (0) stored INVERTED → 1
-        sys_state_a = 1'b1;
-        
-        // Bit 1 of key (1) stored NORMAL → 1
-        timer_ref_b = 1'b1;
-        
-        // Bit 2 of key (1) stored INVERTED → 0
-        calib_val_c = 1'b0;
-        
-        // Bit 3 of key (1) stored NORMAL → 1
-        pwr_mon_d = 1'b1;
-        
-        // Bit 4 of key (0) stored INVERTED → 1
-        clk_div_e = 1'b1;
-        
-        // Bit 5 of key (1) stored NORMAL → 1
-        stat_flag_f = 1'b1;
-        
-        // Bit 6 of key (1) stored INVERTED → 0
-        mux_sel_g = 1'b0;
-        
-        // Bit 7 of key (1) stored NORMAL → 1
-        ena_ctrl_h = 1'b1;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            // Bit 0 of key (0) stored INVERTED → 1
+            sys_state_a <= 1'b1;
+            
+            // Bit 1 of key (1) stored NORMAL → 1
+            timer_ref_b <= 1'b1;
+            
+            // Bit 2 of key (1) stored INVERTED → 0
+            calib_val_c <= 1'b0;
+            
+            // Bit 3 of key (1) stored NORMAL → 1
+            pwr_mon_d <= 1'b1;
+            
+            // Bit 4 of key (0) stored INVERTED → 1
+            clk_div_e <= 1'b1;
+            
+            // Bit 5 of key (1) stored NORMAL → 1
+            stat_flag_f <= 1'b1;
+            
+            // Bit 6 of key (1) stored INVERTED → 0
+            mux_sel_g <= 1'b0;
+            
+            // Bit 7 of key (1) stored NORMAL → 1
+            ena_ctrl_h <= 1'b1;
+        end
+        // In normal operation, these registers retain their values
+        // They are not updated - the key is hardcoded via reset
     end
 
     /* ---------------------------------------------------------------------

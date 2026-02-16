@@ -49,7 +49,7 @@
 
   "//": "TARNOVSKY SHUFFLE: Register Scattering Strategy",
   "//": "Custom placement hints via TCL for physical layout obfuscation",
-  "//": "See placement_constraints.tcl for implementation details",
+  "//": "See placement_strategy_notes.tcl for implementation details",
   "//": "Note: Standard cells use placer hints, not absolute coordinates",
   "PL_RESIZER_DESIGN_OPTIMIZATIONS": 1,
   "PL_RESIZER_TIMING_OPTIMIZATIONS": 1
