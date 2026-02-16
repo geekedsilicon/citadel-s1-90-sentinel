@@ -109,7 +109,8 @@ module tt_um_vaelix_sentinel (
      * 6. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
-     * The trailing 1'b0 ensures the reduction is never optimised to a constant.
+     * The trailing 1'b0 creates a dependency that prevents optimization
+     * while ensuring the reduction always evaluates to 0.
      */
     wire _unused_signal = &{uio_in, 1'b0};
 

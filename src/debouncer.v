@@ -42,7 +42,7 @@ module debouncer #(
 
     // Per-bit debouncing state
     reg [7:0] stable_signal;
-    reg [1:0] stability_counter [7:0];  // 2-bit counter for each bit (0-3)
+    reg [1:0] stability_counter [7:0];  // 2-bit counter for each bit (0 to DEBOUNCE_CYCLES-1)
     reg [7:0] prev_signal;
     
     // Fuzzing attack detection
@@ -92,7 +92,10 @@ module debouncer #(
                 
                 // Detect any changes from previous cycle
                 if (signal_in != prev_signal) begin
-                    change_counter <= change_counter + 1;
+                    // Saturating increment to prevent overflow
+                    if (change_counter < 7'd127) begin
+                        change_counter <= change_counter + 1;
+                    end
                     
                     // Check for fuzzing attack
                     if (change_counter >= (ATTACK_THRESHOLD - 1)) begin
