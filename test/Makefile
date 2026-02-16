@@ -59,6 +59,48 @@ TOPLEVEL         = tb
 # --- TEST MODULE (cocotb 2.0 — variable renamed from MODULE) ----------------
 COCOTB_TEST_MODULES = test
 
+# --- COVERAGE CONFIGURATION -------------------------------------------------
+# Enable coverage collection with: make COVERAGE=1
+# Requires Verilator 5.036+ (install from source if system version is older)
+ifeq ($(COVERAGE),1)
+    # Verify Verilator version
+    VERILATOR_VERSION := $(shell verilator --version 2>/dev/null | head -1 | awk '{print $$2}')
+    VERILATOR_MAJOR := $(shell echo $(VERILATOR_VERSION) | cut -d. -f1)
+    VERILATOR_MINOR := $(shell echo $(VERILATOR_VERSION) | cut -d. -f2)
+    
+    # Check if Verilator meets minimum version (5.036)
+    VERILATOR_OK := $(shell [ "$(VERILATOR_MAJOR)" -gt 5 -o \( "$(VERILATOR_MAJOR)" -eq 5 -a "$(VERILATOR_MINOR)" -ge 36 \) ] && echo 1 || echo 0)
+    
+    ifneq ($(VERILATOR_OK),1)
+        $(error COVERAGE=1 requires Verilator 5.036+. Current: $(VERILATOR_VERSION). Install from: https://github.com/verilator/verilator)
+    endif
+    
+    # Switch to Verilator for coverage support
+    SIM = verilator
+    
+    # Enable line and toggle coverage
+    EXTRA_ARGS += --coverage --coverage-line --coverage-toggle
+    
+    # Verilator-specific flags for better compatibility
+    EXTRA_ARGS += --trace-fst
+endif
+
+# --- COVERAGE POST-PROCESSING -----------------------------------------------
+.PHONY: coverage-report
+coverage-report:
+	@echo "VAELIX: Generating coverage report..."
+	@if [ ! -f sim_build/coverage.dat ]; then \
+	    echo "VAELIX ERROR: No coverage.dat found. Run 'make COVERAGE=1' first."; \
+	    exit 1; \
+	fi
+	verilator_coverage --write-info coverage.info sim_build/coverage.dat
+	@echo "VAELIX: Coverage report generated: coverage.info"
+
+.PHONY: check-coverage
+check-coverage: coverage-report
+	@echo "VAELIX: Analyzing coverage..."
+	python3 ../scripts/check_coverage.py coverage.info
+
 # --- COCOTB EXECUTION -------------------------------------------------------
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
