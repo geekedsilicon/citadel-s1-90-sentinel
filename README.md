@@ -34,6 +34,20 @@ The authentication logic implements a **constant-time bitslicing comparator** to
 ---
 
 ## 03 | OPERATIONAL INTERFACE
+
+### Pinout Table
+<!-- BEGIN PINOUT TABLE -->
+| Port Name | Direction | Width | Description |
+|-----------|-----------|-------|-------------|
+| `ui_in` | input | [7:0] | Dedicated inputs — Key Interface |
+| `uo_out` | output | [7:0] | Dedicated outputs — Display Interface |
+| `uio_in` | input | [7:0] | IOs: Input path — Secondary Telemetry |
+| `uio_out` | output | [7:0] | IOs: Output path — Status Array |
+| `uio_oe` | output | [7:0] | IOs: Enable path — Port Directional Control |
+| `ena` | input | 1 | Power-state enable |
+| `clk` | input | 1 | System Clock |
+| `rst_n` | input | 1 | Global Reset (Active LOW) |
+<!-- END PINOUT TABLE -->
 To verify custody of the Sentinel Mark I, the operator must interface with the **Vaelix Evaluation Terminal** (TT06 Demo Board).
 
 ### **Authorization Sequence**
