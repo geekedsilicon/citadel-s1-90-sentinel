@@ -29,6 +29,7 @@ endmodule
  * --------------------------------------------------------------------- */
 
 // CITADEL_BUFFER: Signal conditioning and mesh synchronization.
+/* verilator lint_off DECLFILENAME */
 (* keep_hierarchy *)
 module buffer_cell (
     input  wire in,
@@ -105,6 +106,7 @@ module not_cell (
 );
     assign out = ~in;
 endmodule
+/* verilator lint_on DECLFILENAME */
 
 // CITADEL_MUX: Dynamic data routing for the Sentinel Mesh.
 (* keep_hierarchy *)
@@ -175,47 +177,17 @@ module dffsr_cell (
     end
 endmodule
 
+
 /* ---------------------------------------------------------------------
- * 3. IHP SG13G2 STANDARD CELL PRIMITIVES
+ * 3. PDK PRIMITIVES (IHP SG13G2)
  * --------------------------------------------------------------------- */
 
-// IHP_XNOR2: 2-input XNOR gate (Behavioral model for RTL simulation)
-// Physical Implementation: sg13g2_xnor2_1 (Standard drive strength)
-// Purpose: Bit-level equality comparison in the Key Comparator
+// SG13G2_BUF_2: 2x drive strength buffer from IHP 130nm SG13G2 PDK.
+// Used for glitch detection circuits (Gerlinsky Guard).
 (* keep_hierarchy *)
-module sg13g2_xnor2_1 (
+module sg13g2_buf_2 (
     input  wire A,
-    input  wire B,
     output wire X
 );
-    assign X = ~(A ^ B);
-endmodule
-
-// IHP_AND4: 4-input AND gate (Behavioral model for RTL simulation)
-// Physical Implementation: sg13g2_and4_1 (Standard drive strength)
-// Purpose: Combining multiple comparison results in hierarchical reduction tree
-(* keep_hierarchy *)
-module sg13g2_and4_1 (
-    input  wire A,
-    input  wire B,
-    input  wire C,
-    input  wire D,
-    output wire X
-);
-    assign X = A & B & C & D;
-endmodule
-
-// IHP_AND2: 2-input AND gate (Behavioral model for RTL simulation)
-// Physical Implementation: sg13g2_and2_1 (Standard drive strength)
-// Purpose: Final stage combining in hierarchical reduction tree
-// NOTE: These are simplified behavioral models for RTL simulation only.
-//       Gate-level simulation should use the actual IHP SG13G2 PDK models
-//       which include timing, power, and physical characteristics.
-(* keep_hierarchy *)
-module sg13g2_and2_1 (
-    input  wire A,
-    input  wire B,
-    output wire X
-);
-    assign X = A & B;
+    assign X = A;
 endmodule

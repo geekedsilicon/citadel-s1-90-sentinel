@@ -1,0 +1,114 @@
+# ==============================================================================
+# VAELIX | SENTINEL MARK I — AUTO-GENERATED DATASHEET PIPELINE
+# ==============================================================================
+# FILE:      .github/workflows/update_datasheet.yaml
+# VERSION:   1.0.0 — Citadel Standard
+# TARGET:    Documentation Auto-Sync
+# REPO:      citadel-s1-90-sentinel
+#
+# PURPOSE:
+#   Automatically updates the README.md pinout table whenever RTL changes.
+#   Uses Verilator to parse Verilog and extract port definitions.
+#   Ensures documentation stays synchronized with silicon.
+#
+# TRIGGER:
+#   - Push to src/ directory
+#   - Manual dispatch
+#
+# PROCESS:
+#   1. Checkout repository
+#   2. Install Verilator
+#   3. Run verilator --xml-only on main Verilog file
+#   4. Execute Python script to update README.md pinout table
+#   5. Auto-commit changes if pinout has changed
+#
+# COMMIT MESSAGE:
+#   'DOCS: Auto-sync pinout with Silicon'
+# ==============================================================================
+
+name: update_datasheet
+
+on:
+  push:
+    paths:
+      - 'src/**'
+  workflow_dispatch:
+
+jobs:
+  update-pinout:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Need write permission to commit updated README
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install Verilator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator
+          verilator --version
+      
+      - name: Find main Verilog file
+        id: find-verilog
+        run: |
+          # Look for project.v first (per problem statement), then fall back to tt_um_*.v
+          if [ -f "src/project.v" ]; then
+            VFILE="src/project.v"
+          elif [ -f "src/tt_um_vaelix_sentinel.v" ]; then
+            VFILE="src/tt_um_vaelix_sentinel.v"
+          else
+            # Find any .v file that starts with tt_um_
+            VFILE=$(find src -name "tt_um_*.v" | head -n 1)
+            if [ -z "$VFILE" ]; then
+              echo "ERROR: No suitable Verilog file found"
+              exit 1
+            fi
+          fi
+          echo "verilog_file=$VFILE" >> $GITHUB_OUTPUT
+          echo "Found Verilog file: $VFILE"
+      
+      - name: Generate XML with Verilator
+        run: |
+          VFILE="${{ steps.find-verilog.outputs.verilog_file }}"
+          echo "Processing $VFILE"
+          # Include all .v files from src/ to resolve dependencies
+          verilator --xml-only --bbox-unsup -Wno-fatal src/*.v -top-module tt_um_vaelix_sentinel
+          
+          # Verilator outputs XML to obj_dir/
+          if [ ! -f "obj_dir/Vtt_um_vaelix_sentinel.xml" ]; then
+            echo "ERROR: Verilator XML output not found"
+            ls -la obj_dir/ || echo "obj_dir not created"
+            exit 1
+          fi
+          
+          echo "✓ Verilator XML generated"
+      
+      - name: Update README pinout table
+        run: |
+          python3 scripts/update_pinout.py \
+            obj_dir/Vtt_um_vaelix_sentinel.xml \
+            README.md
+      
+      - name: Check for changes
+        id: check-changes
+        run: |
+          git diff --exit-code README.md || echo "changed=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit and push changes
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "DOCS: Auto-sync pinout with Silicon"
+          git push

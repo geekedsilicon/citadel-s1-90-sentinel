@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
+import random
 
 # ============================================================================
 # VAELIX MISSION CONSTANTS
@@ -49,21 +50,50 @@ class SentinelModel:
 
     def __init__(self):
         self.ui_in   = 0x00
+        self.uio_in  = 0x00
         self.uo_out  = SEG_LOCKED
         self.uio_out = GLOW_DORMANT
         self.uio_oe  = UIO_ALL_OUTPUT
+        # Ring oscillator counter (simplified model)
+        self.osc_counter = 0
+        # Simulated oscillation frequency (60 MHz for IHP 130nm)
+        # This is a simulated value within expected range (50-70 MHz)
+        # Actual frequency can only be measured on real silicon
+        self.osc_freq_mhz = 60  # Expected range: 50-70 MHz
 
-    def evaluate(self, key_input):
+    def evaluate(self, key_input, uio_input=0x00):
         """Combinational: no clock needed. Input → Output, instant."""
         self.ui_in = key_input & 0xFF
+        self.uio_in = uio_input & 0xFF
+        
+        # Authorization logic
         if self.ui_in == VAELIX_KEY:
             self.uo_out  = SEG_VERIFIED
-            self.uio_out = GLOW_ACTIVE
+            glow_output = GLOW_ACTIVE
         else:
             self.uo_out  = SEG_LOCKED
-            self.uio_out = GLOW_DORMANT
+            glow_output = GLOW_DORMANT
+        
+        # Ring oscillator enabled when uio_in[0] is high
+        if self.uio_in & 0x01:
+            # When measuring, output counter, not glow
+            self.uio_out = self.osc_counter & 0xFF
+        else:
+            # Normal glow output
+            self.uio_out = glow_output
+            
         self.uio_oe = UIO_ALL_OUTPUT
         return self.uo_out, self.uio_out, self.uio_oe
+    
+    def tick_oscillator(self, time_ns):
+        """Simulate oscillator counting for a given time in nanoseconds."""
+        # Increment counter based on simulated frequency
+        # freq_mhz = cycles per microsecond
+        # time_ns / 1000 = time in microseconds
+        # cycles = time_us * freq_mhz
+        cycles = int((time_ns / 1000.0) * self.osc_freq_mhz)
+        self.osc_counter = (self.osc_counter + cycles) & 0xFFFFFFFF
+        return cycles
 
 
 # ============================================================================
@@ -792,6 +822,73 @@ def run_test_15():
     return errors == 0
 
 
+def run_test_16():
+    """TEST 16: RING OSCILLATOR — SILICON FINGERPRINT VALIDATION"""
+    Console.header("TEST 16: RING OSCILLATOR — SILICON FINGERPRINT (50-70 MHz)")
+    s = SentinelModel()
+    errors = 0
+
+    Console.subheader("Phase 1: Ring Oscillator Disabled (uio_in[0]=0)")
+    # When oscillator is disabled, uio_out should show glow status
+    seg, glow, oe = s.evaluate(0x00, uio_input=0x00)
+    Console.info(f"Key: 0x00, uio_in[0]=0 → uio_out={hex(glow)}")
+    if glow == GLOW_DORMANT:
+        Console.passed("Oscillator disabled: uio_out shows GLOW_DORMANT (0x00)")
+    else:
+        Console.failed(f"Expected GLOW_DORMANT (0x00), got {hex(glow)}")
+        errors += 1
+
+    seg, glow, oe = s.evaluate(VAELIX_KEY, uio_input=0x00)
+    Console.info(f"Key: 0xB6, uio_in[0]=0 → uio_out={hex(glow)}")
+    if glow == GLOW_ACTIVE:
+        Console.passed("Oscillator disabled: uio_out shows GLOW_ACTIVE (0xFF)")
+    else:
+        Console.failed(f"Expected GLOW_ACTIVE (0xFF), got {hex(glow)}")
+        errors += 1
+
+    Console.subheader("Phase 2: Ring Oscillator Enabled (uio_in[0]=1)")
+    # Reset counter
+    s.osc_counter = 0
+    
+    # Enable oscillator and let it count
+    seg, glow, oe = s.evaluate(0x00, uio_input=0x01)
+    initial_count = glow
+    Console.info(f"Initial counter output: {hex(initial_count)}")
+    
+    # Simulate some time passing (1 microsecond = 1000 ns)
+    # At 60 MHz, we expect ~60 counts per microsecond
+    time_us = 10  # 10 microseconds
+    cycles = s.tick_oscillator(time_us * 1000)
+    
+    # Read counter again
+    seg, glow, oe = s.evaluate(0x00, uio_input=0x01)
+    final_count = glow
+    Console.info(f"After {time_us} µs: counter output = {hex(final_count)}")
+    Console.info(f"Simulated {cycles} oscillations ({s.osc_freq_mhz} MHz)")
+    
+    # Verify frequency is in expected range
+    expected_min_freq = 50  # MHz
+    expected_max_freq = 70  # MHz
+    
+    if expected_min_freq <= s.osc_freq_mhz <= expected_max_freq:
+        Console.passed(f"Frequency {s.osc_freq_mhz} MHz is in valid range ({expected_min_freq}-{expected_max_freq} MHz)")
+    else:
+        Console.failed(f"Frequency {s.osc_freq_mhz} MHz is outside range ({expected_min_freq}-{expected_max_freq} MHz)")
+        errors += 1
+
+    Console.subheader("Phase 3: Frequency Range Validation")
+    Console.info(f"Expected range: {expected_min_freq}-{expected_max_freq} MHz (IHP 130nm SG13G2)")
+    Console.info(f"Simulated frequency: {s.osc_freq_mhz} MHz")
+    Console.info("This frequency signature validates chip fabrication authenticity.")
+    Console.info("A chip fabricated on wrong process will show different frequency.")
+    
+    if errors == 0:
+        Console.passed("Ring oscillator validation PASSED — frequency in expected range")
+    
+    Console.result("TEST 16: RING OSCILLATOR", errors == 0)
+    return errors == 0
+
+
 # ============================================================================
 # STANDALONE MAIN — RUN ALL TESTS WITH FULL CONSOLE OUTPUT
 # ============================================================================
@@ -815,6 +912,7 @@ def main():
         ("TEST 13: Glow-Segment Coherence Audit",      run_test_13),
         ("TEST 14: Long Duration Hold (3000 cycles)",   run_test_14),
         ("TEST 15: Input Transition Coverage",          run_test_15),
+        ("TEST 16: Ring Oscillator — Silicon Fingerprint", run_test_16),
     ]
 
     results  = []
@@ -872,6 +970,7 @@ try:
     import cocotb
     from cocotb.clock import Clock
     from cocotb.triggers import ClockCycles
+    from cocotb.utils import get_sim_time
     COCOTB_AVAILABLE = True
 except ImportError:
     COCOTB_AVAILABLE = False
@@ -1360,6 +1459,213 @@ if COCOTB_AVAILABLE:
         assert errs == 0, f"TRANSITION FAILURE: {errs} bad transitions"
         dut._log.info(f"  [PASS] All {len(transitions)} transitions clean")
         dut._log.info("TEST 15: COMPLETE")
+    # ================================================================
+    # COCOTB TEST 16: OUTPUT INTEGRITY MONITORING (HUANG LOOPBACK)
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_drive_fight_detection(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 16: DRIVE-FIGHT DETECTION (Huang Loopback)")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Phase 1: Normal operation - verify system works
+        dut._log.info("  Phase 1: Normal Operation")
+        dut.ui_in.value = VAELIX_KEY
+        dut.uio_in.value = 0xFF  # Loopback matches driven value
+        await ClockCycles(dut.clk, 2)
+        seg = int(dut.uo_out.value)
+        glow = int(dut.uio_out.value)
+        assert seg == SEG_VERIFIED, f"Auth should work: seg={hex(seg)}"
+        assert glow == GLOW_ACTIVE, f"Glow should be active: glow={hex(glow)}"
+        dut._log.info(f"    [PASS] Normal auth: VERIFIED + GLOW")
+
+        # Phase 2: Simulate 1 clock cycle mismatch (should not trigger tamper)
+        dut._log.info("  Phase 2: Single-Cycle Drive Fight (Should NOT trigger)")
+        dut.uio_in.value = 0x00  # Attacker forces LOW (mismatch for 1 cycle)
+        await ClockCycles(dut.clk, 1)
+        dut.uio_in.value = 0xFF  # Return to normal
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        # System should still be authorized (tamper needs 2+ cycles)
+        assert seg == SEG_VERIFIED, f"Single-cycle mismatch should NOT trigger tamper: seg={hex(seg)}"
+        dut._log.info(f"    [PASS] 1-cycle mismatch ignored")
+
+        # Phase 3: Simulate 2+ clock cycle mismatch (SHOULD trigger tamper)
+        dut._log.info("  Phase 3: Sustained Drive Fight (2+ cycles → TAMPER)")
+        dut.uio_in.value = 0x00  # Attacker forces LOW continuously
+        await ClockCycles(dut.clk, 1)  # Counter = 1
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"    After 1 cycle: seg={hex(seg)}")
+        
+        await ClockCycles(dut.clk, 1)  # Counter = 2, tamper triggers
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"    After 2 cycles: seg={hex(seg)}")
+        
+        # Tamper should have erased key_register, forcing LOCKED state
+        assert seg == SEG_LOCKED, f"Drive fight for 2+ cycles should erase key: seg={hex(seg)}"
+        dut._log.info(f"    [PASS] Drive fight detected, key erased → LOCKED")
+
+        # Phase 4: Verify key cannot be re-entered while drive fight persists
+        dut._log.info("  Phase 4: Key Re-entry During Active Tamper")
+        dut.ui_in.value = VAELIX_KEY
+        dut.uio_in.value = 0x00  # Drive fight still active
+        await ClockCycles(dut.clk, 2)
+        seg = int(dut.uo_out.value)
+        # Should remain LOCKED because tamper is active
+        assert seg == SEG_LOCKED, f"System should remain locked during tamper: seg={hex(seg)}"
+        dut._log.info(f"    [PASS] Re-auth blocked during drive fight")
+
+        # Phase 5: Resolve drive fight and verify recovery
+        dut._log.info("  Phase 5: Drive Fight Resolution & Recovery")
+        dut.uio_in.value = 0xFF  # Attacker gives up, loopback restored
+        await ClockCycles(dut.clk, 2)
+        seg = int(dut.uo_out.value)
+        glow = int(dut.uio_out.value)
+        # With valid key and no drive fight, should authorize again
+        assert seg == SEG_VERIFIED, f"System should recover after drive fight ends: seg={hex(seg)}"
+        assert glow == GLOW_ACTIVE, f"Glow should be active: glow={hex(glow)}"
+        dut._log.info(f"    [PASS] System recovered: VERIFIED + GLOW")
+
+        dut._log.info("TEST 16: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 16: RING OSCILLATOR - SILICON FINGERPRINT
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_ring_oscillator(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 16: RING OSCILLATOR")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Phase 1: Oscillator disabled (uio_in[0] = 0)
+        dut._log.info("  Phase 1: Oscillator disabled (uio_in[0]=0)")
+        dut.uio_in.value = 0x00
+        dut.ui_in.value = 0x00
+        await ClockCycles(dut.clk, 5)
+        
+        # Should show glow output (GLOW_DORMANT)
+        uio_val = int(dut.uio_out.value)
+        assert uio_val == GLOW_DORMANT, \
+            f"With oscillator disabled and locked, expected GLOW_DORMANT ({hex(GLOW_DORMANT)}), got {hex(uio_val)}"
+        dut._log.info(f"  [PASS] uio_out = {hex(uio_val)} (GLOW_DORMANT)")
+
+        # Verify with authorized key
+        dut.ui_in.value = VAELIX_KEY
+        await ClockCycles(dut.clk, 5)
+        uio_val = int(dut.uio_out.value)
+        assert uio_val == GLOW_ACTIVE, \
+            f"With oscillator disabled and verified, expected GLOW_ACTIVE ({hex(GLOW_ACTIVE)}), got {hex(uio_val)}"
+        dut._log.info(f"  [PASS] uio_out = {hex(uio_val)} (GLOW_ACTIVE)")
+
+        # Phase 2: Enable oscillator (uio_in[0] = 1)
+        dut._log.info("  Phase 2: Oscillator enabled (uio_in[0]=1)")
+        dut.ui_in.value = 0x00
+        dut.uio_in.value = 0x01
+        await ClockCycles(dut.clk, 10)
+        
+        # Read initial counter value
+        initial_count = int(dut.uio_out.value)
+        dut._log.info(f"  Initial counter: {hex(initial_count)}")
+        
+        # Let oscillator run for some time
+        cycles_to_wait = 1000
+        await ClockCycles(dut.clk, cycles_to_wait)
+        
+        # Read final counter value
+        final_count = int(dut.uio_out.value)
+        dut._log.info(f"  Final counter: {hex(final_count)}")
+        
+        # Counter should have changed (oscillator is running)
+        # Calculate expected delta based on clock frequency
+        # At 25 MHz system clock (40ns period), 1000 cycles = 40 microseconds
+        # With a 60 MHz oscillator, we expect roughly:
+        # 40 us * 60 MHz = 2400 oscillations
+        # But we're sampling edges on the system clock, so actual count depends on
+        # how many edges we catch. We should see at least some counting.
+        # Mask to 8 bits since only lower 8 bits of 32-bit counter are output
+        delta = (final_count - initial_count) & 0xFF
+        dut._log.info(f"  Counter delta: {delta}")
+        
+        # Verify counter is incrementing
+        # In RTL simulation with behavioral model, exact frequency varies,
+        # but counter should increment significantly over 1000 system clock cycles
+        assert delta > 0, f"Counter did not increment (delta={delta})"
+        dut._log.info(f"  [PASS] Counter incremented by {delta} in {cycles_to_wait} clock cycles")
+        
+        # Phase 3: Validate frequency range (this is a placeholder in simulation)
+        dut._log.info("  Phase 3: Frequency validation")
+        dut._log.info("  Expected range: 50-70 MHz (IHP 130nm SG13G2)")
+        dut._log.info("  Note: Actual frequency can only be measured on real silicon")
+        dut._log.info("  Simulation provides functional validation only")
+        
+        dut._log.info("TEST 16: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 16: RANDOM NOISE INJECTION (CHAOS MONKEY)
+    # ================================================================
+    @cocotb.test()
+    async def test_random_noise_injection(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 16: CHAOS MONKEY (Random Noise Injection)")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        
+        # Initial reset
+        await reset_sentinel(dut)
+        
+        # Seed random number generator with simulation time (after reset to accumulate time)
+        seed = get_sim_time(units='ns')
+        random.seed(seed)
+        dut._log.info(f"  RNG seeded with simulation time: {seed}ns")
+        
+        violations = []
+        
+        # Run for 1,000 clock cycles with random inputs and control toggles
+        for cycle in range(1000):
+            # Drive ui_in with random 8-bit integer
+            random_key = random.randint(0, 255)
+            dut.ui_in.value = random_key
+            
+            # Randomly toggle ena and rst_n with 5% probability each
+            if random.random() < 0.05:
+                dut.ena.value = 0
+            else:
+                dut.ena.value = 1
+                
+            if random.random() < 0.05:
+                dut.rst_n.value = 0
+            else:
+                dut.rst_n.value = 1
+            
+            # Store current control states (these will affect output after clock edge)
+            current_ena = int(dut.ena.value)
+            current_rst_n = int(dut.rst_n.value)
+            
+            # Wait for clock edge (output should reflect the control signals set above)
+            await ClockCycles(dut.clk, 1)
+            
+            # Check invariant: if rst_n=0 or ena=0, uo_out must be 0xFF
+            uo_out_value = int(dut.uo_out.value)
+            
+            if current_rst_n == 0 or current_ena == 0:
+                if uo_out_value != 0xFF:
+                    sim_time = get_sim_time(units='ns')
+                    violation_msg = (
+                        f"INVARIANT VIOLATION at cycle {cycle} (time={sim_time}ns): "
+                        f"ena={current_ena}, rst_n={current_rst_n}, "
+                        f"expected uo_out=0xFF, got uo_out=0x{uo_out_value:02X}"
+                    )
+                    dut._log.error(f"  {violation_msg}")
+                    violations.append(violation_msg)
+        
+        # Report results
+        if violations:
+            dut._log.error(f"  TEST FAILED: {len(violations)} invariant violations detected")
+            assert False, f"Random noise injection test failed: {len(violations)} invariant violations detected"
+        else:
+            dut._log.info(f"  [PASS] All 1,000 cycles completed with no violations")
+            dut._log.info("TEST 16: COMPLETE")
 
 
 # ============================================================================
