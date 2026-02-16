@@ -22,10 +22,11 @@ TOPLEVEL_LANG  ?= verilog
 # --- SOURCE DEFINITIONS -----------------------------------------------------
 SRC_DIR         = $(PWD)/../src
 
-# CRITICAL: Both files are required. The Sentinel instantiates Citadel
+# CRITICAL: All files are required. The Sentinel instantiates Citadel
 # Primitives (buffer_cell, xnor_cell, and_cell, etc.) defined in cells.v.
+# ring_oscillator.v provides the silicon fingerprint functionality.
 # Missing cells.v causes: "error: Unknown module type: buffer_cell"
-PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v
+PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v ring_oscillator.v
 
 # --- SIMULATION MODES -------------------------------------------------------
 ifneq ($(GATES),yes)

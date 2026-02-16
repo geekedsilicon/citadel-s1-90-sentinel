@@ -76,9 +76,26 @@ module tt_um_vaelix_sentinel (
                                  : SegOff;
 
     /* ---------------------------------------------------------------------
-     * 4. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
+     * 4. RING OSCILLATOR: SILICON FINGERPRINT
+     * ---------------------------------------------------------------------
+     * Process Usage Monitor - validates chip fabrication authenticity.
+     * A 31-inverter ring oscillator provides a frequency signature specific
+     * to the IHP 130nm SG13G2 process. Counter runs when uio_in[0] is high.
+     */
+    wire [31:0] osc_count;
+    ring_oscillator ring_osc (
+        .clk(clk),
+        .rst_n(rst_n),
+        .enable(uio_in[0]),
+        .count(osc_count)
+    );
+
+    /* ---------------------------------------------------------------------
+     * 5. STATUS ARRAY: VAELIX "GLOW" PERSISTENCE
      * ---------------------------------------------------------------------
      * Provides immediate high-intensity visual feedback upon authorization.
+     * When not measuring oscillator (uio_in[0]=0), shows glow status.
+     * When measuring oscillator (uio_in[0]=1), shows lower 8 bits of counter.
      * All UIO pins are forced to Output mode.
      *
      * Fix: `&&` (logical AND) replaced with `&` (bitwise AND).
@@ -86,15 +103,17 @@ module tt_um_vaelix_sentinel (
      * is the correct idiomatic operator for HDL gate-level logic and
      * avoids implicit boolean reduction of multi-bit types if ports change.
      */
-    assign uio_out = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
+    wire [7:0] glow_output;
+    assign glow_output = (internal_ena & is_authorized) ? 8'hFF : 8'h00;
+    assign uio_out = uio_in[0] ? osc_count[7:0] : glow_output;
     assign uio_oe  = 8'hFF;
 
     /* ---------------------------------------------------------------------
-     * 5. SYSTEM STUBS
+     * 6. SYSTEM STUBS
      * ---------------------------------------------------------------------
      * Prevents DRC warnings for unreferenced ports during CI/CD.
      * The trailing 1'b0 ensures the reduction is never optimised to a constant.
      */
-    wire _unused_signal = &{uio_in, clk, rst_n, 1'b0};
+    wire _unused_signal = &{uio_in[7:1], 1'b0};
 
 endmodule
