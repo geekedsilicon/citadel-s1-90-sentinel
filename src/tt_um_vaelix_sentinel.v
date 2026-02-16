@@ -31,13 +31,19 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
-     * 1. AUTHORIZATION LOGIC
+     * 1. AUTHORIZATION LOGIC - TARNOVSKY SHUFFLE ENABLED
      * ---------------------------------------------------------------------
-     * HARDCODED_KEY: 0xB6 (1011_0110)
-     * Direct bitwise comparison for instantaneous verification.
+     * Key storage moved to scattered registers in project.v module.
+     * Physical layout obfuscation prevents visual key extraction.
      */
     wire is_authorized;
-    assign is_authorized = (ui_in == 8'b1011_0110);
+    
+    project key_validator (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .key_input    (ui_in),
+        .is_authorized(is_authorized)
+    );
 
     /* ---------------------------------------------------------------------
      * 2. SIGNAL INTEGRITY & OPTIMIZATION BYPASS

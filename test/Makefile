@@ -25,7 +25,8 @@ SRC_DIR         = $(PWD)/../src
 # CRITICAL: Both files are required. The Sentinel instantiates Citadel
 # Primitives (buffer_cell, xnor_cell, and_cell, etc.) defined in cells.v.
 # Missing cells.v causes: "error: Unknown module type: buffer_cell"
-PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v
+# project.v contains the Tarnovsky Shuffle register scattering logic.
+PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v project.v
 
 # --- SIMULATION MODES -------------------------------------------------------
 ifneq ($(GATES),yes)
@@ -68,6 +69,6 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 visualize:
 	@echo "VAELIX: Generating Logic Schematic for DigitalJS..."
-	yosys -p "read_verilog ../src/cells.v ../src/project.v; prep -top tt_um_vaelix_sentinel; write_json sentinel_schematic.json"
+	yosys -p "read_verilog ../src/cells.v ../src/project.v ../src/tt_um_vaelix_sentinel.v; prep -top tt_um_vaelix_sentinel; write_json sentinel_schematic.json"
 	@echo "VAELIX: Schematic generated: test/sentinel_schematic.json"
 	@echo "VAELIX: Upload this file to https://digitaljs.tilk.eu/ to see the Gate."
