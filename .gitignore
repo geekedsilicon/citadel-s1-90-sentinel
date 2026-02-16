@@ -73,3 +73,4 @@ test/gate_level_netlist.v
 # These must never override the committed src/config.json Citadel standard.
 src/user_config.json
 src/config_merged.json
+results_*/
