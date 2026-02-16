@@ -60,7 +60,7 @@ COMPILE_ARGS    += -I$(SRC_DIR)
 VERILOG_SOURCES += $(PWD)/tb.v
 TOPLEVEL         = tb
 
-# --- TEST MODULE (cocotb 2.0 — variable renamed from MODULE) ----------------
+# --- TEST MODULE (cocotb 2.0 — overridable for different test suites) ------
 COCOTB_TEST_MODULES ?= test
 
 # --- COVERAGE CONFIGURATION -------------------------------------------------

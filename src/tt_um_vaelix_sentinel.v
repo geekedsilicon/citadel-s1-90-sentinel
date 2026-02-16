@@ -45,8 +45,14 @@ module tt_um_vaelix_sentinel (
     localparam logic STATE_NORMAL = 1'b0;
     localparam logic STATE_BRICK  = 1'b1;
     
-    reg current_state = STATE_NORMAL;   // Initialize to NORMAL state
-    reg [6:0] uio_in_prev = 7'h00;      // Initialize to zero
+    reg current_state;
+    reg [6:0] uio_in_prev;
+    
+    /* Initial values for simulation - reset logic ensures correct behavior */
+    initial begin
+        current_state = STATE_NORMAL;
+        uio_in_prev   = 7'h00;
+    end
     
     /* ---------------------------------------------------------------------
      * 2. AUTHORIZATION LOGIC
@@ -93,6 +99,9 @@ module tt_um_vaelix_sentinel (
      * Monitor uio_in[7:1] for any toggle activity (potential debug probing).
      * If detected during normal operation (rst_n active), transition to BRICK.
      * Only ena toggle (power cycle) can exit BRICK state.
+     * 
+     * Note: Soft reset (rst_n) updates uio_in_prev to current value to prevent
+     * false tamper detection when pins are already non-zero during reset.
      */
     wire tamper_detected;
     assign tamper_detected = (uio_in[7:1] != uio_in_prev) && rst_n;
@@ -103,8 +112,9 @@ module tt_um_vaelix_sentinel (
             current_state <= STATE_NORMAL;
             uio_in_prev   <= 7'h00;
         end else if (!rst_n) begin
-            // Soft reset: clear state tracker but preserve BRICK if set
-            uio_in_prev   <= 7'h00;
+            // Soft reset: update tracker to current value to avoid false tamper,
+            // but preserve BRICK state (only power cycle can exit BRICK)
+            uio_in_prev   <= uio_in[7:1];
         end else begin
             if (current_state == STATE_NORMAL && tamper_detected) begin
                 // Tamper detected: enter BRICK state
