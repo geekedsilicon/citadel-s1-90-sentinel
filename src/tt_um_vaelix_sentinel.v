@@ -255,6 +255,7 @@ module tt_um_vaelix_sentinel (
      * -----------   ---------------   -----
      * 'L' Locked    f, e, d           0xC7
      * 'U' Unlocked  f, e, d, c, b     0xC1   ('V' unsupported on 7-seg)
+     * 'H' Hard Lock e, f, c, b        0xC9   ('H' for HARD_LOCK)
      * Disabled      none              0xFF
      * BRICK         all dark          0x00   (All segments OFF)
      *
@@ -264,6 +265,7 @@ module tt_um_vaelix_sentinel (
      */
     localparam logic [7:0] SegLocked   = 8'hC7;
     localparam logic [7:0] SegVerified = 8'hC1;
+    localparam logic [7:0] SegHardLock = 8'hC9;
     localparam logic [7:0] SegOff      = 8'hFF;
     localparam logic [7:0] SegBrick    = 8'h00;  // All Dark (BRICK state)
 
