@@ -1,15 +1,17 @@
 # ============================================================================
-# VAELIX | PROJECT CITADEL - AUTOMATED VERIFICATION PROTOCOL
+# VAELIX | PROJECT CITADEL — AUTOMATED VERIFICATION PROTOCOL
 # ============================================================================
 # FILE:      test/Makefile
-# VERSION:   1.1.0 — Citadel Standard
+# VERSION:   1.2.0 — Citadel Standard
 # TARGET:    Tiny Tapeout 06 (IHP 130nm SG13G2)
 # ENGINE:    Cocotb 2.0.1 + Icarus Verilog
 # PURPOSE:   RTL & Gate-Level Verification of the Sentinel Mark I
 # FIX LOG:
-#   v1.1.0 — [CRITICAL] MODULE -> COCOTB_TEST_MODULES (cocotb 2.0 migration)
-#   v1.1.0 — [CRITICAL] PROJECT_SOURCES corrected to tt_um_vaelix_sentinel.v
-#   v1.1.0 — FST waveform output enabled by default
+#   v1.0.0 — Initial Makefile
+#   v1.1.0 — MODULE → COCOTB_TEST_MODULES (cocotb 2.0 migration)
+#   v1.1.0 — PROJECT_SOURCES corrected to tt_um_vaelix_sentinel.v
+#   v1.2.0 — [CRITICAL] Added cells.v to PROJECT_SOURCES (buffer_cell,
+#             and_cell, or_cell, etc. required by the Sentinel design)
 # ============================================================================
 
 # --- SIMULATION CONFIGURATION -----------------------------------------------
@@ -19,7 +21,11 @@ TOPLEVEL_LANG  ?= verilog
 
 # --- SOURCE DEFINITIONS -----------------------------------------------------
 SRC_DIR         = $(PWD)/../src
-PROJECT_SOURCES = tt_um_vaelix_sentinel.v
+
+# CRITICAL: Both files are required. The Sentinel instantiates Citadel
+# Primitives (buffer_cell, xnor_cell, and_cell, etc.) defined in cells.v.
+# Missing cells.v causes: "error: Unknown module type: buffer_cell"
+PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v
 
 # --- SIMULATION MODES -------------------------------------------------------
 ifneq ($(GATES),yes)
