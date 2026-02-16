@@ -128,7 +128,7 @@ jobs:
           fi
 
           # Extract cell count from Yosys statistics
-          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oP '\d+')
+          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oE '[0-9]+' | head -1)
 
           if [ -z "$CELL_COUNT" ]; then
             echo "Error: Could not extract cell count from log"
@@ -184,7 +184,7 @@ jobs:
             exit 0
           fi
 
-          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oP '\d+')
+          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oE '[0-9]+' | head -1)
 
           if [ -z "$CELL_COUNT" ]; then
             echo "⚠️  Warning: Could not extract main branch cell count"
@@ -204,9 +204,15 @@ jobs:
           BYPASS_INPUT="${{ github.event.inputs.bypass_metrics }}"
           BYPASS_COMMIT=$(git log -1 --pretty=%B | grep -i "\[bypass-metrics\]" || echo "")
 
-          if [ "$MAIN_CELLS" -eq "0" ]; then
+          # Validate that we have numeric values
+          if [ -z "$MAIN_CELLS" ] || [ "$MAIN_CELLS" -eq "0" ]; then
             echo "⚠️  No baseline metrics from main branch - skipping comparison"
             exit 0
+          fi
+
+          if [ -z "$CURRENT_CELLS" ]; then
+            echo "❌ Error: Could not extract current branch metrics"
+            exit 1
           fi
 
           if [ "$BYPASS_INPUT" = "true" ] || [ ! -z "$BYPASS_COMMIT" ]; then
@@ -215,7 +221,7 @@ jobs:
             exit 0
           fi
 
-          # Calculate percentage change
+          # Calculate percentage change (with division by zero safety)
           CHANGE=$(echo "scale=2; ($CURRENT_CELLS - $MAIN_CELLS) * 100 / $MAIN_CELLS" | bc)
 
           echo ""
