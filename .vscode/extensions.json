@@ -1,6 +1,31 @@
 {
+  "//0": "==============================================================",
+  "//1": "VAELIX | SENTINEL MARK I — VS CODE EXTENSION MANIFEST",
+  "//2": "FILE:     .vscode/extensions.json",
+  "//3": "VERSION:  1.1.0 — Citadel Standard",
+  "//4": "REPO:     citadel-s1-90-sentinel",
+  "//5": "",
+  "//6": "PURPOSE:  Equips every engineer who opens this repository with",
+  "//7": "          the full Vaelix Vision Suite immediately on clone.",
+  "//8": "          Must maintain full parity with citadel-s1-90-core.",
+  "//9": "",
+  "//A": "MANIFEST:",
+  "//B": "  mshr-h.veriloghdl        — RTL syntax, Verilator linting, hover defs",
+  "//C": "  chipsalliance.verible    — Verilog formatter (Vaelix alignment standard)",
+  "//D": "  surfer-project.surfer    — FST/VCD waveform viewer (no GTKWave needed)",
+  "//E": "  ms-python.python         — test.py / cocotb IntelliSense and debugging",
+  "//F": "  redhat.vscode-yaml       — info.yaml schema validation",
+  "//G": "",
+  "//H": "FIX LOG:",
+  "//I": "  v1.1.0 — [MODERATE] Extension list expanded to full 5-extension manifest",
+  "//J": "  v1.1.0 — [MODERATE] Inline array comments removed (invalid strict JSON)",
+  "//K": "==============================================================",
+
   "recommendations": [
     "mshr-h.veriloghdl",
-    "surfer-project.surfer"
+    "chipsalliance.verible",
+    "surfer-project.surfer",
+    "ms-python.python",
+    "redhat.vscode-yaml"
   ]
 }
