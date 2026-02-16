@@ -36,9 +36,9 @@ module tt_um_vaelix_sentinel (
      * HARDCODED_KEY: 0xB6 (1011_0110)
      * Direct bitwise comparison for instantaneous verification.
      * 
-     * KEY REGISTER: Stores authorization state. Can be erased by tamper detection.
-     * This register maintains the verified state across clock cycles and provides
-     * a target for tamper-triggered erasure (Huang Loopback requirement).
+     * KEY REGISTER: Stores authorization enable bit. Can be erased by tamper detection.
+     * When key_register=1, normal operation. When key_register=0 (tampered), 
+     * authorization is permanently disabled until reset.
      */
     wire key_match;
     assign key_match = (ui_in == 8'b1011_0110);
@@ -46,7 +46,8 @@ module tt_um_vaelix_sentinel (
     reg  key_register;
     wire is_authorized;
     
-    // Authorization requires both correct key AND untampered key register
+    // Authorization requires correct key AND non-tampered state
+    // key_register acts as a security fuse - once blown by tamper, system is locked
     assign is_authorized = key_match & key_register;
 
     /* ---------------------------------------------------------------------
@@ -141,21 +142,22 @@ module tt_um_vaelix_sentinel (
     /* ---------------------------------------------------------------------
      * 6. KEY REGISTER MANAGEMENT
      * ---------------------------------------------------------------------
-     * The key register stores authorization state and can be erased on:
-     * - Reset (rst_n = 0)
-     * - Tamper detection (drive fight for 2+ cycles)
-     * - Loss of valid key input (automatic re-lock)
+     * The key register acts as a security fuse/enable bit:
+     * - Starts at 1 (enabled) after reset
+     * - Set to 0 (disabled) when tamper detected
+     * - Once tampered (0), stays 0 until reset - system permanently locked
+     * 
+     * This provides the "erase key register" behavior required by Huang Loopback,
+     * while maintaining the original combinational authorization behavior when
+     * not tampered.
      */
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            key_register <= 1'b1;  // Start in enabled state
+            key_register <= 1'b1;  // Reset: enable authorization
         end else if (tamper_detect) begin
-            key_register <= 1'b0;  // Erase on tamper
-        end else if (key_match) begin
-            key_register <= 1'b1;  // Set when correct key present
-        end else begin
-            key_register <= 1'b0;  // Clear when key removed
+            key_register <= 1'b0;  // Tamper: disable permanently (until reset)
         end
+        // else: maintain current state (no change unless tampered)
     end
     
     /* ---------------------------------------------------------------------
