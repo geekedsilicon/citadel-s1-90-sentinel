@@ -25,7 +25,8 @@ SRC_DIR         = $(PWD)/../src
 # CRITICAL: Both files are required. The Sentinel instantiates Citadel
 # Primitives (buffer_cell, xnor_cell, and_cell, etc.) defined in cells.v.
 # Missing cells.v causes: "error: Unknown module type: buffer_cell"
-PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v
+# glitch_detector.v contains the Gerlinsky Guard voltage glitch detector.
+PROJECT_SOURCES = tt_um_vaelix_sentinel.v cells.v glitch_detector.v
 
 # --- SIMULATION MODES -------------------------------------------------------
 ifneq ($(GATES),yes)

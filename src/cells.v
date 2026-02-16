@@ -174,3 +174,18 @@ module dffsr_cell (
             q <= d;
     end
 endmodule
+
+
+/* ---------------------------------------------------------------------
+ * 3. PDK PRIMITIVES (IHP SG13G2)
+ * --------------------------------------------------------------------- */
+
+// SG13G2_BUF_2: 2x drive strength buffer from IHP 130nm SG13G2 PDK.
+// Used for glitch detection circuits (Gerlinsky Guard).
+(* keep_hierarchy *)
+module sg13g2_buf_2 (
+    input  wire A,
+    output wire X
+);
+    assign X = A;
+endmodule
