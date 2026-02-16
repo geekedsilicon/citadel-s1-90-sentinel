@@ -22,6 +22,9 @@
   "//": "CLOCK ROUTING: Primary Sentinel Heartbeat.",
   "CLOCK_PORT": "clk",
 
+  "//": "SDC CONSTRAINTS: Timing and load specifications for physical design.",
+  "SDC_FILE": "dir::src/citadel.sdc",
+
   "//": "DESIGN REPAIR: Preserving our 'Citadel' signature buffer path.",
   "DESIGN_REPAIR_BUFFER_OUTPUT_PORTS": 0,
 
@@ -32,6 +35,8 @@
   "RIGHT_MARGIN_MULT": 6,
 
   "//": "FLOORPLANNING: Absolute sizing for IHP fixed-tile constraints.",
+  "//": "TASK IX: Custom floorplan injection for high-density layout.",
+  "EXTRA_FLOORPLAN_HOOKS": "src/floorplan.tcl",
   "FP_SIZING": "absolute",
   "GRT_ALLOW_CONGESTION": 1,
   "FP_IO_HLENGTH": 2,
@@ -46,5 +51,12 @@
   "MAGIC_DEF_LABELS": 0,
   "MAGIC_WRITE_LEF_PINONLY": 1,
   "RUN_KLAYOUT_XOR": 0,
-  "RUN_KLAYOUT_DRC": 0
+  "RUN_KLAYOUT_DRC": 0,
+
+  "//": "TARNOVSKY SHUFFLE: Register Scattering Strategy",
+  "//": "Custom placement hints via TCL for physical layout obfuscation",
+  "//": "See placement_strategy_notes.tcl for implementation details",
+  "//": "Note: Standard cells use placer hints, not absolute coordinates",
+  "PL_RESIZER_DESIGN_OPTIMIZATIONS": 1,
+  "PL_RESIZER_TIMING_OPTIMIZATIONS": 1
 }

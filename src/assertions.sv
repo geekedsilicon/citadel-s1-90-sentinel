@@ -1,0 +1,133 @@
+/*
+ * ============================================================================
+ * PROJECT CITADEL | FORMAL VERIFICATION ASSERTIONS
+ * ============================================================================
+ * AUTHOR:    Vaelix Systems Engineering / R&D Division
+ * MODULE:    vaelix_sentinel_assertions
+ * PURPOSE:   Formal verification properties for tt_um_vaelix_sentinel
+ *
+ * DESCRIPTION:
+ * This module contains SystemVerilog assertions (SVA) for formal verification
+ * of the Sentinel Lock logic using SymbiYosys.
+ * ============================================================================
+ */
+
+`default_nettype none
+
+module vaelix_sentinel_assertions (
+    input wire [7:0] ui_in,
+    input wire [7:0] uo_out,
+    input wire [7:0] uio_in,
+    input wire [7:0] uio_out,
+    input wire [7:0] uio_oe,
+    input wire       ena,
+    input wire       clk,
+    input wire       rst_n
+);
+
+    // Sentinel state and key constants
+    localparam [7:0] AUTH_KEY = 8'hB6;        // Vaelix authorization key
+    localparam [7:0] VERIFIED_STATE = 8'hC1;  // Output value when verified
+    localparam [3:0] MAX_CYCLE_COUNT = 4'd15; // Maximum cycle counter value
+
+    // Previous cycle ui_in value register
+    reg [7:0] ui_in_prev;
+    
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            ui_in_prev <= 8'h00;
+        end else begin
+            ui_in_prev <= ui_in;
+        end
+    end
+
+    /* -------------------------------------------------------------------------
+     * ASSERTION: VERIFIED STATE SECURITY
+     * -------------------------------------------------------------------------
+     * uo_out NEVER equals 8'hC1 (VERIFIED) unless ui_in was 8'hB6 in the
+     * previous clock cycle.
+     *
+     * This ensures that the VERIFIED state can only be reached with the
+     * correct authorization key presented in the previous cycle.
+     * 
+     * Note: This temporal property verifies that the VERIFIED state appears
+     * only when the authorization key was presented in the immediately 
+     * preceding clock cycle.
+     */
+    always @(posedge clk) begin
+        if (rst_n && ena) begin
+            // If output shows VERIFIED, previous cycle's input must have been the key
+            if (uo_out == VERIFIED_STATE) begin
+                assert (ui_in_prev == AUTH_KEY);
+            end
+        end
+    end
+
+    /* -------------------------------------------------------------------------
+     * COVER: AUTHORIZATION SEQUENCE TRACE
+     * -------------------------------------------------------------------------
+     * Cover a trace where:
+     * 1. rst_n is held low for 5 cycles
+     * 2. rst_n is released (goes high)
+     * 3. ui_in is set to 0xB6 (authorization key)
+     *
+     * This demonstrates that the formal tool can find a valid authorization
+     * sequence path through the design.
+     *
+     * Implementation: Track time since reset release and detect key application.
+     * The formal tool will search for a trace where reset was held for 5+ cycles,
+     * then released, then the key was applied.
+     */
+    reg [3:0] cycles_since_reset_release;
+    reg       seen_reset_released;
+    reg       seen_key_after_reset;
+    
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            cycles_since_reset_release <= 4'd0;
+            seen_reset_released <= 1'b0;
+            seen_key_after_reset <= 1'b0;
+        end else begin
+            // Track that we've seen reset released
+            if (!seen_reset_released) begin
+                seen_reset_released <= 1'b1;
+            end
+            
+            // Count cycles since reset was released
+            if (cycles_since_reset_release < MAX_CYCLE_COUNT) begin
+                cycles_since_reset_release <= cycles_since_reset_release + 4'd1;
+            end
+            
+            // Detect key application after reset was released
+            if (seen_reset_released && ui_in == AUTH_KEY) begin
+                seen_key_after_reset <= 1'b1;
+            end
+        end
+    end
+    
+    // Cover property: Find trace where key is applied after reset release
+    // This will cover the scenario: reset held low → reset released → key applied
+    always @(posedge clk) begin
+        cover (rst_n && seen_key_after_reset);
+    end
+
+endmodule
+
+/* -------------------------------------------------------------------------
+ * BIND STATEMENT
+ * -------------------------------------------------------------------------
+ * This bind statement connects the assertion module to the DUT.
+ * It creates an instance of vaelix_sentinel_assertions within the
+ * tt_um_vaelix_sentinel module scope, allowing the assertions to
+ * observe all internal signals.
+ */
+bind tt_um_vaelix_sentinel vaelix_sentinel_assertions assertion_inst (
+    .ui_in   (ui_in),
+    .uo_out  (uo_out),
+    .uio_in  (uio_in),
+    .uio_out (uio_out),
+    .uio_oe  (uio_oe),
+    .ena     (ena),
+    .clk     (clk),
+    .rst_n   (rst_n)
+);

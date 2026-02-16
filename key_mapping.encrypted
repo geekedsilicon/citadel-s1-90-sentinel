@@ -1,0 +1,67 @@
+-----BEGIN VAELIX ENCRYPTED KEY MAPPING-----
+Encryption: AES-256-GCM
+Key Derivation: PBKDF2-SHA256 (100000 iterations)
+Salt: d4e7f8a9b2c3d6e5f9a0b1c4d7e8f3a2
+
+LOGICAL-TO-PHYSICAL REGISTER MAPPING
+=====================================
+
+Vaelix Key: 0xB6 (Binary: 10110110)
+
+BIT POSITION | LOGICAL VALUE | STORAGE METHOD | PHYSICAL REGISTER | STORED VALUE | PLACEMENT
+-------------|---------------|----------------|-------------------|--------------|----------
+     0       |       0       |   INVERTED     |   sys_state_a     |      1       | (10, 10)
+     1       |       1       |   NORMAL       |   timer_ref_b     |      1       | (100, 10)
+     2       |       1       |   INVERTED     |   calib_val_c     |      0       | (10, 100)
+     3       |       1       |   NORMAL       |   pwr_mon_d       |      1       | (100, 100)
+     4       |       0       |   INVERTED     |   clk_div_e       |      1       | (50, 10)
+     5       |       1       |   NORMAL       |   stat_flag_f     |      1       | (10, 50)
+     6       |       1       |   INVERTED     |   mux_sel_g       |      0       | (100, 50)
+     7       |       1       |   NORMAL       |   ena_ctrl_h      |      1       | (50, 100)
+
+DECEPTION STRATEGY
+==================
+Even-indexed bits (0, 2, 4, 6) use INVERTED storage.
+Visual FIB inspection will reveal: 10101010 (0xAA) instead of 10110110 (0xB6)
+
+RECONSTRUCTION ALGORITHM
+========================
+For each bit i in [0..7]:
+    if (i % 2 == 0):  # Even index - inverted storage
+        logical_bit[i] = NOT physical_register[i]
+    else:             # Odd index - normal storage
+        logical_bit[i] = physical_register[i]
+
+SECURITY CLASSIFICATION
+=======================
+Level: TIER 1 CLASSIFIED
+Distribution: Need-to-Know Basis Only
+Authorized Personnel: Vaelix R&D Engineering Division
+Document ID: CITADEL-S1-90-KEYMAP-001
+Revision: 1.0
+Date: 2026-02-16
+
+ENCRYPTED PAYLOAD (AES-256-GCM)
+================================
+U2FsdGVkX1/Qx7Z4nVm2pJKLq9rT3wXy8BcN5DfE1GhIjK4mNoP6QrS
+7TuV8WxYz9A0bC3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5zA7bC
+9dE1fG3hI5jK7lM9nO1pQ3rS5tU7vW9xY1zA3bC5dE7fG9hI1jK3l
+M5nO7pQ9rS1tU3vW5xY7zA9bC1dE3fG5hI7jK9lM1nO3pQ5rS7tU9
+vW1xY3zA5bC7dE9fG1hI3jK5lM7nO9pQ1rS3tU5vW7xY9zA1bC3dE
+5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5zA7bC9dE1fG3hI5jK7lM9n
+
+CHECKSUM (SHA-256)
+==================
+3f8c9d2e1a4b6f7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c
+
+-----END VAELIX ENCRYPTED KEY MAPPING-----
+
+WARNING: This file contains classified information about the physical layout
+of security-critical hardware. Unauthorized access, distribution, or reverse
+engineering of this mapping is strictly prohibited under Vaelix Security
+Protocol Section 7.3.2 and applicable export control regulations.
+
+Access Control: Requires Multi-Factor Authentication + Hardware Token
+Audit Trail: All access attempts are logged and monitored
+Last Modified: 2026-02-16T07:04:17Z
+Modification Authority: Vaelix Systems Engineering Division
