@@ -1,9 +1,48 @@
+# ==============================================================================
+# VAELIX | SENTINEL MARK I — WOKWI VERIFICATION PIPELINE
+# ==============================================================================
+# FILE:      .github/workflows/wokwi_test.yaml
+# VERSION:   1.1.0 — Citadel Standard
+# TARGET:    Tiny Tapeout 06 (IHP 130nm SG13G2) — ttihp26a Shuttle
+# REPO:      citadel-s1-90-sentinel
+#
+# PURPOSE:
+#   Fetches the truth table from the Wokwi project and verifies it against
+#   the local RTL simulation. If the schematic and the Verilog disagree,
+#   the mission is aborted. We do not hope it works — we prove it.
+#
+# PIPELINE:
+#   1. Checkout repo + tt-support-tools (ref: tt10)
+#   2. Fetch live truth table from Wokwi via tt_tool.py
+#   3. If truth table exists, run Cocotb interrogation suite
+#   4. Upload waveform artifacts for post-run analysis
+#
+# FIX LOG:
+#   v1.1.0 — [CRITICAL] make clean -> make clean || true (fresh runner safety)
+#   v1.1.0 — [CRITICAL] Added results.xml existence guard before grep
+#   v1.1.0 — [MODERATE] Step names normalized to match cross-repo standard
+#   v1.1.0 — [MODERATE] Artifact name restored: test-vcd (not sentinel-test-telemetry)
+#   v1.1.0 — Added concurrency guard (cancels stale runs on rapid push)
+# ==============================================================================
+
 name: wokwi_test
+
 on: [push, workflow_dispatch]
+
+# Cancel any in-progress test run when a newer push arrives.
+concurrency:
+  group: "wokwi-test-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   wokwi_test:
     runs-on: ubuntu-24.04
+
     steps:
+
+      # ------------------------------------------------------------------------
+      # STEP 1: SOURCE ACQUISITION
+      # ------------------------------------------------------------------------
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
@@ -16,11 +55,13 @@ jobs:
           path: tt
           ref: tt10
 
+      # ------------------------------------------------------------------------
+      # STEP 2: TOOLCHAIN INSTALLATION
+      # ------------------------------------------------------------------------
       - name: Install iverilog
         shell: bash
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      # Set Python up and install cocotb
       - name: Setup python
         uses: actions/setup-python@v5
         with:
@@ -32,7 +73,12 @@ jobs:
           pip install -r test/requirements.txt
           pip install -r tt/requirements.txt
 
+      # ------------------------------------------------------------------------
+      # STEP 3: TRUTH TABLE ACQUISITION
+      # ------------------------------------------------------------------------
       - name: Fetch the truth table
+        # Fetches live logic definitions from the Wokwi Project ID
+        # defined in info.yaml. Generates test/truthtable.md if found.
         run: ./tt/tt_tool.py --create-user-config
 
       - name: Check for truth table existence
@@ -41,26 +87,50 @@ jobs:
         with:
           files: "test/truthtable.md"
 
+      # ------------------------------------------------------------------------
+      # STEP 4: INTERROGATION EXECUTION
+      # Only runs if truth table was successfully fetched in Step 3.
+      # ------------------------------------------------------------------------
       - name: Run tests
         if: steps.check_files.outputs.files_exists == 'true'
         run: |
           cd test
-          make clean
+
+          # make clean is safe on a fresh runner — || true prevents false
+          # failure when sim_build/ does not yet exist
+          make clean || true
+
+          # Execute truth table verification
           make
-          # make will return success even if the test fails, so check for failure in the results.xml
+
+          # Guard with existence check — missing results.xml means a compile
+          # or configuration error occurred (check Icarus output above).
+          if [ ! -f results.xml ]; then
+            echo "ERROR: results.xml not found — simulation did not complete."
+            echo "Check the Icarus compile output above for module/syntax errors."
+            exit 1
+          fi
+
+          # Fail the job if any test assertion failed.
+          # make returns 0 even on test failure — grep is the real gate.
           ! grep failure results.xml
 
+      # ------------------------------------------------------------------------
+      # STEP 5: REPORTING (always runs — captures both pass and fail)
+      # ------------------------------------------------------------------------
       - name: Test Summary
         uses: test-summary/action@v2.3
         with:
           paths: "test/results.xml"
         if: always()
 
-      - name: upload vcd
+      # ------------------------------------------------------------------------
+      # STEP 6: ARTIFACT UPLOAD
+      # VCD waveforms for post-run analysis in GTKWave or Surfer.
+      # ------------------------------------------------------------------------
+      - name: Upload vcd
         if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-vcd
           path: |
-            test/*.vcd
-            test/results.xml
