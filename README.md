@@ -28,6 +28,9 @@ Unlike software, which can be patched, the logic of the Sentinel Mark I is immut
 * **The Response:** * **State A (Denied):** The 7-segment display shows a "Locked" pattern (`0xC7`). The chip remains silent.
     * **State B (Verified):** Upon correct key entry, the display shifts to "Verified" (`0xC1`) and the Status Array ignites.
 
+### SECURITY: THE KAMKAR EQUALIZER
+The authentication logic implements a **constant-time bitslicing comparator** to defend against power analysis attacks. Every authentication attempt performs exactly the same gate operations (8 XOR + 7 OR + 1 NOT), ensuring that power consumption reveals no information about the key. This eliminates Hamming Weight leakage and defeats side-channel attacks. See [KAMKAR_EQUALIZER.md](docs/KAMKAR_EQUALIZER.md) for technical details.
+
 ---
 
 ## 03 | OPERATIONAL INTERFACE
