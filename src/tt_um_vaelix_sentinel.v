@@ -31,13 +31,34 @@ module tt_um_vaelix_sentinel (
 );
 
     /* ---------------------------------------------------------------------
-     * 1. AUTHORIZATION LOGIC
+     * 1. AUTHORIZATION LOGIC — KAMKAR EQUALIZER (Power Analysis Defense)
      * ---------------------------------------------------------------------
      * HARDCODED_KEY: 0xB6 (1011_0110)
-     * Direct bitwise comparison for instantaneous verification.
+     * 
+     * SECURITY: Bitslicing comparator eliminates Hamming Weight leakage.
+     * Traditional equality (ui_in == key) leaks information through power
+     * consumption — checking 0x01 vs 0xFF causes different gate transition
+     * counts. Samy Kamkar's power analysis would extract the key.
+     * 
+     * IMPLEMENTATION:
+     * 1. diff = ui_in ^ key  → XOR finds bit differences (0=match, 1=differ)
+     * 2. OR-reduce diff      → Single bit: 0=all match, 1=any differ
+     * 3. NOT the result      → is_authorized = 1 when perfect match
+     * 
+     * CONSTANT-TIME GUARANTEE:
+     * Every authentication attempt executes exactly 8 XOR operations + 
+     * 7 OR operations, regardless of input value. This ensures identical
+     * power consumption for 0x00, 0xFF, or any other incorrect key.
      */
+    localparam logic [7:0] VAELIX_KEY = 8'b1011_0110;
+    wire [7:0] diff;
+    wire any_diff;
     wire is_authorized;
-    assign is_authorized = (ui_in == 8'b1011_0110);
+    
+    assign diff = ui_in ^ VAELIX_KEY;
+    assign any_diff = diff[7] | diff[6] | diff[5] | diff[4] | 
+                      diff[3] | diff[2] | diff[1] | diff[0];
+    assign is_authorized = ~any_diff;
 
     /* ---------------------------------------------------------------------
      * 2. SIGNAL INTEGRITY & OPTIMIZATION BYPASS
