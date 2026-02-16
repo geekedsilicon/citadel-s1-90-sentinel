@@ -33,6 +33,9 @@ jobs:
   # ----------------------------------------------------------------------------
   gitleaks:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read # Required to checkout repository
+      issues: write # Required for Gitleaks to create issues (optional)
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -53,6 +56,8 @@ jobs:
   # ----------------------------------------------------------------------------
   metadata_scan:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read # Required to checkout repository
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -98,6 +103,8 @@ jobs:
   # ----------------------------------------------------------------------------
   comment_hygiene:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read # Required to checkout repository
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
