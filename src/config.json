@@ -1,6 +1,7 @@
 {
   "//": "VAELIX PROJECT CITADEL - SYNTHESIS CONTROL PROTOCOL",
   "//": "Target: IHP 130nm SG13G2 | Security Level: TIER 1",
+  "//": "PDK Mapping: See docs/pdk_primitive_mapping.md for SG13G2 cell reference",
 
   "//": "PLACEMENT DENSITY: Optimized for 'Citadel' signal integrity.",
   "//": "Increased to 65% to ensure a compact, military-grade cell layout.",
