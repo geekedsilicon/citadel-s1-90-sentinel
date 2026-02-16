@@ -97,7 +97,8 @@ jobs:
 
   # ----------------------------------------------------------------------------
   # JOB 2: METRICS COMPARISON (THE WARDEN)
-  # Compares cell count and power consumption against main branch.
+  # Compares cell count (gate count) against main branch.
+  # Power consumption is correlated with gate count in digital designs.
   # Fails build if gate count increases by more than 5% without bypass.
   # ----------------------------------------------------------------------------
   metrics:
@@ -137,28 +138,44 @@ jobs:
           echo "cell_count=$CELL_COUNT" >> $GITHUB_OUTPUT
           echo "📊 Current branch cell count: $CELL_COUNT"
 
-      - name: Checkout main branch
-        run: |
-          # Clone main branch into a separate directory
-          git clone --branch main --single-branch --depth 1 https://github.com/${{ github.repository }}.git main-branch
+      - name: Checkout main branch for comparison
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: recursive
+          path: main-repo
 
       - name: Build GDS for main branch
         run: |
-          cd main-branch
-          # Use docker directly to run the action in this directory
-          docker run --rm \
-            -v $(pwd):/work \
-            -w /work \
-            ghcr.io/tinytapeout/tt-gds-action:ttihp26a \
-            /bin/bash -c "tt-gds-action --pdk ihp-sg13g2 --librelane-version 3.0.0.dev44"
+          # Save current directory
+          ORIGINAL_DIR=$(pwd)
+
+          # Change to main branch directory
+          cd main-repo
+
+          # Clone tt-support-tools
+          git clone https://github.com/TinyTapeout/tt-support-tools.git tt
+
+          # Setup Python requirements
+          pip install -r tt/requirements.txt
+
+          # Create user config and build
+          ./tt/tt_tool.py --create-user-config --ihp
+
+          # Install LibreLane
+          pip install librelane==3.0.0.dev44
+
+          # Harden the design
+          ./tt/tt_tool.py --harden --ihp
+
+          # Return to original directory
+          cd "$ORIGINAL_DIR"
 
       - name: Extract main branch metrics
         id: main_metrics
         run: |
-          cd main-branch
-
-          # Find and parse synthesis log for cell count
-          LOG_FILE=$(find runs/wokwi/ -name "*.log" -type f 2>/dev/null | xargs grep -l "Number of cells" 2>/dev/null | head -1)
+          # Find and parse synthesis log for cell count from main-repo
+          LOG_FILE=$(find main-repo/runs/wokwi/ -name "*.log" -type f 2>/dev/null | xargs grep -l "Number of cells" 2>/dev/null | head -1)
 
           if [ -z "$LOG_FILE" ]; then
             echo "⚠️  Warning: Could not find main branch synthesis log"
