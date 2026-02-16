@@ -204,3 +204,18 @@ module sg13g2_and4_1 (
 );
     assign X = A & B & C & D;
 endmodule
+
+// IHP_AND2: 2-input AND gate (Behavioral model for RTL simulation)
+// Physical Implementation: sg13g2_and2_1 (Standard drive strength)
+// Purpose: Final stage combining in hierarchical reduction tree
+// NOTE: These are simplified behavioral models for RTL simulation only.
+//       Gate-level simulation should use the actual IHP SG13G2 PDK models
+//       which include timing, power, and physical characteristics.
+(* keep_hierarchy *)
+module sg13g2_and2_1 (
+    input  wire A,
+    input  wire B,
+    output wire X
+);
+    assign X = A & B;
+endmodule

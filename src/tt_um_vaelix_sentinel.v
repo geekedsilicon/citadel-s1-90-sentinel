@@ -100,12 +100,12 @@ module tt_um_vaelix_sentinel (
     );
     
     // Second level: Final authorization signal (AND of both nibble matches)
-    // Note: Using standard 2-input AND from existing Citadel cells for final stage
+    // Using sg13g2_and2_1 to maintain consistency with IHP standard cell usage
     wire is_authorized;
-    and_cell final_and (
-        .a(match_lower),
-        .b(match_upper),
-        .out(is_authorized)
+    sg13g2_and2_1 final_and (
+        .A(match_lower),
+        .B(match_upper),
+        .X(is_authorized)
     );
 
     /* ---------------------------------------------------------------------
