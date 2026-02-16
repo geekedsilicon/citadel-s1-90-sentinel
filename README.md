@@ -60,6 +60,28 @@ To verify custody of the Sentinel Mark I, the operator must interface with the *
 ## 05 | ENGINEERING LINEAGE
 This chip is the direct descendant of the **Project Citadel** FPGA prototyping performed on the **Xilinx RFSoC 4x2** and **PYNQ-Z2**. It translates the "Brain" of the S1-90 into a tangible, holdable asset.
 
+---
+
+## 06 | CI/CD HARDENING: THE WARDEN
+The Sentinel Mark I employs automated metrics monitoring to enforce design efficiency and prevent unwanted bloat.
+
+**The Warden** is an automated CI/CD guard that:
+* Compares gate count (cell count) between the current branch and the main branch baseline
+* **Fails the build if gate count increases by more than 5%** without explicit authorization
+* Provides two bypass mechanisms for justified increases:
+  * Include `[bypass-metrics]` in your commit message
+  * Manually trigger the workflow with the "Bypass metrics threshold check" option enabled
+
+**Why This Matters:**
+* Gate count correlates directly with power consumption and silicon area
+* Prevents accidental logic bloat from degrading the design
+* Enforces "symmetry and efficiency" — the Vaelix engineering standard
+
+**Pipeline Flow:**
+```
+gds → metrics (THE WARDEN) → viewer
+```
+
 
 
 ---
