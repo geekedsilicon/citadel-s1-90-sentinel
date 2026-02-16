@@ -32,7 +32,7 @@
 
   "//": "FLOORPLANNING: Absolute sizing for IHP fixed-tile constraints.",
   "//": "TASK IX: Custom floorplan injection for high-density layout.",
-  "EXTRA_FLOORPLAN_HOOKS": "dir::src/floorplan.tcl",
+  "EXTRA_FLOORPLAN_HOOKS": "src/floorplan.tcl",
   "FP_SIZING": "absolute",
   "GRT_ALLOW_CONGESTION": 1,
   "FP_IO_HLENGTH": 2,
