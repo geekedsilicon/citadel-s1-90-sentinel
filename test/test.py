@@ -529,6 +529,269 @@ def run_test_10():
     return errors == 0
 
 
+def run_test_11():
+    """TEST 11: HAMMING WEIGHT ANALYSIS — SAME-WEIGHT KEY REJECTION"""
+    Console.header("TEST 11: HAMMING WEIGHT ANALYSIS — SAME-WEIGHT KEYS")
+    s = SentinelModel()
+    errors = 0
+
+    # 0xB6 = 10110110 has Hamming weight 5 (five 1-bits).
+    # There are C(8,5) = 56 possible 8-bit values with exactly 5 ones.
+    # Only 0xB6 should pass. The other 55 must be rejected.
+    key_weight = bin(VAELIX_KEY).count('1')
+    Console.info(f"Valid key: {hex(VAELIX_KEY)} = {bin(VAELIX_KEY)[2:].zfill(8)} (Hamming weight: {key_weight})")
+    Console.info(f"Testing all 8-bit values with exactly {key_weight} ones set...")
+    print()
+
+    same_weight_keys = [v for v in range(256) if bin(v).count('1') == key_weight]
+    Console.info(f"Total keys with weight {key_weight}: {len(same_weight_keys)}")
+
+    authorized = 0
+    deflected  = 0
+
+    for key in same_weight_keys:
+        seg, glow, oe = s.evaluate(key)
+
+        if key == VAELIX_KEY:
+            if seg == SEG_VERIFIED:
+                Console.passed(f"{hex(key)} ({bin(key)[2:].zfill(8)}): AUTHORIZED ← valid key")
+                authorized += 1
+            else:
+                Console.failed(f"{hex(key)}: Should be VERIFIED, got {hex(seg)}")
+                errors += 1
+        else:
+            if seg == SEG_LOCKED:
+                Console.passed(f"{hex(key)} ({bin(key)[2:].zfill(8)}): DEFLECTED")
+                deflected += 1
+            else:
+                Console.failed(f"WEIGHT BREACH at {hex(key)} ({bin(key)[2:].zfill(8)}): seg={hex(seg)}")
+                errors += 1
+
+    Console.info(f"Results: {authorized} authorized, {deflected} deflected, {errors} breaches")
+    ok = authorized == 1 and deflected == (len(same_weight_keys) - 1) and errors == 0
+    Console.result("TEST 11: HAMMING WEIGHT", ok)
+    return ok
+
+
+def run_test_12():
+    """TEST 12: PARTIAL NIBBLE MATCH — HALF-KEY ATTACK"""
+    Console.header("TEST 12: PARTIAL NIBBLE MATCH — HALF-KEY ATTACK")
+    s = SentinelModel()
+    errors = 0
+
+    # 0xB6: upper nibble = 0xB, lower nibble = 0x6
+    # Test all keys matching the upper nibble (0xBx) and all matching lower (0xx6).
+    # Only 0xB6 (which matches BOTH) should pass.
+    upper = VAELIX_KEY & 0xF0  # 0xB0
+    lower = VAELIX_KEY & 0x0F  # 0x06
+
+    Console.info(f"Valid key: {hex(VAELIX_KEY)} | Upper nibble: {hex(upper >> 4)} | Lower nibble: {hex(lower)}")
+
+    # Upper nibble matches: 0xB0 through 0xBF
+    Console.subheader(f"Upper Nibble Match (0x{upper >> 4:X}x) — 16 keys")
+    for lo in range(16):
+        key = upper | lo
+        seg, glow, oe = s.evaluate(key)
+        tag = "← VALID KEY" if key == VAELIX_KEY else ""
+
+        if key == VAELIX_KEY:
+            if seg == SEG_VERIFIED:
+                Console.passed(f"{hex(key)} ({bin(key)[2:].zfill(8)}): VERIFIED {tag}")
+            else:
+                Console.failed(f"{hex(key)}: Expected VERIFIED, got {hex(seg)}")
+                errors += 1
+        else:
+            if seg == SEG_LOCKED:
+                Console.passed(f"{hex(key)} ({bin(key)[2:].zfill(8)}): LOCKED")
+            else:
+                Console.failed(f"NIBBLE BREACH at {hex(key)}: Upper nibble match leaked! seg={hex(seg)}")
+                errors += 1
+
+    # Lower nibble matches: 0x06, 0x16, 0x26, ..., 0xF6
+    Console.subheader(f"Lower Nibble Match (0xx{lower:X}) — 16 keys")
+    for hi in range(16):
+        key = (hi << 4) | lower
+        seg, glow, oe = s.evaluate(key)
+        tag = "← VALID KEY" if key == VAELIX_KEY else ""
+
+        if key == VAELIX_KEY:
+            if seg == SEG_VERIFIED:
+                Console.passed(f"{hex(key)} ({bin(key)[2:].zfill(8)}): VERIFIED {tag}")
+            else:
+                Console.failed(f"{hex(key)}: Expected VERIFIED, got {hex(seg)}")
+                errors += 1
+        else:
+            if seg == SEG_LOCKED:
+                Console.passed(f"{hex(key)} ({bin(key)[2:].zfill(8)}): LOCKED")
+            else:
+                Console.failed(f"NIBBLE BREACH at {hex(key)}: Lower nibble match leaked! seg={hex(seg)}")
+                errors += 1
+
+    Console.result("TEST 12: NIBBLE ATTACK", errors == 0)
+    return errors == 0
+
+
+def run_test_13():
+    """TEST 13: GLOW-SEGMENT COHERENCE — OUTPUT CONSISTENCY AUDIT"""
+    Console.header("TEST 13: GLOW-SEGMENT COHERENCE — FULL 256-KEY AUDIT")
+    s = SentinelModel()
+    errors       = 0
+    coherent     = 0
+    incoherent   = []
+
+    Console.info("For EVERY input: if seg=VERIFIED then glow must=ACTIVE.")
+    Console.info("                 if seg=LOCKED   then glow must=DORMANT.")
+    Console.info("Mixed states are a hardware defect. Sweeping all 256...")
+    print()
+
+    for key in range(256):
+        seg, glow, oe = s.evaluate(key)
+
+        seg_is_verified = (seg == SEG_VERIFIED)
+        glow_is_active  = (glow == GLOW_ACTIVE)
+        seg_is_locked   = (seg == SEG_LOCKED)
+        glow_is_dormant = (glow == GLOW_DORMANT)
+
+        if seg_is_verified and glow_is_active:
+            coherent += 1
+        elif seg_is_locked and glow_is_dormant:
+            coherent += 1
+        else:
+            incoherent.append(key)
+            errors += 1
+            Console.failed(
+                f"INCOHERENT at {hex(key)}: seg={hex(seg)} "
+                f"({'VER' if seg_is_verified else 'LCK' if seg_is_locked else '???'}) "
+                f"glow={hex(glow)} "
+                f"({'ACT' if glow_is_active else 'DRM' if glow_is_dormant else '???'})"
+            )
+
+    if errors == 0:
+        Console.passed(f"All 256 keys: segment and glow COHERENT ({coherent}/256)")
+    else:
+        Console.failed(f"Incoherent keys: {[hex(k) for k in incoherent]}")
+
+    Console.result("TEST 13: GLOW COHERENCE", errors == 0)
+    return errors == 0
+
+
+def run_test_14():
+    """TEST 14: LONG DURATION HOLD — SUSTAINED AUTHORIZATION STABILITY"""
+    Console.header("TEST 14: LONG DURATION HOLD — 1000-CYCLE STABILITY")
+    s = SentinelModel()
+    errors = 0
+
+    HOLD_CYCLES = 1000
+
+    # Phase 1: Hold LOCKED for N cycles
+    Console.subheader(f"Phase 1: Hold LOCKED (0x00) for {HOLD_CYCLES} cycles")
+    for cycle in range(HOLD_CYCLES):
+        seg, glow, oe = s.evaluate(0x00)
+        if seg != SEG_LOCKED or glow != GLOW_DORMANT:
+            Console.failed(f"LOCKED drift at cycle {cycle}: seg={hex(seg)} glow={hex(glow)}")
+            errors += 1
+            break
+    else:
+        Console.passed(f"LOCKED stable for {HOLD_CYCLES} cycles")
+
+    # Phase 2: Hold VERIFIED for N cycles
+    Console.subheader(f"Phase 2: Hold VERIFIED (0xB6) for {HOLD_CYCLES} cycles")
+    for cycle in range(HOLD_CYCLES):
+        seg, glow, oe = s.evaluate(VAELIX_KEY)
+        if seg != SEG_VERIFIED or glow != GLOW_ACTIVE:
+            Console.failed(f"VERIFIED drift at cycle {cycle}: seg={hex(seg)} glow={hex(glow)}")
+            errors += 1
+            break
+    else:
+        Console.passed(f"VERIFIED stable for {HOLD_CYCLES} cycles")
+
+    # Phase 3: Hold an invalid key for N cycles
+    INVALID_HOLD = 0x49  # complement of valid key
+    Console.subheader(f"Phase 3: Hold INVALID ({hex(INVALID_HOLD)}) for {HOLD_CYCLES} cycles")
+    for cycle in range(HOLD_CYCLES):
+        seg, glow, oe = s.evaluate(INVALID_HOLD)
+        if seg != SEG_LOCKED or glow != GLOW_DORMANT:
+            Console.failed(f"INVALID drift at cycle {cycle}: seg={hex(seg)} glow={hex(glow)}")
+            errors += 1
+            break
+    else:
+        Console.passed(f"INVALID key {hex(INVALID_HOLD)} stayed LOCKED for {HOLD_CYCLES} cycles")
+
+    Console.info(f"Total cycles evaluated: {HOLD_CYCLES * 3}")
+    Console.result("TEST 14: LONG HOLD", errors == 0)
+    return errors == 0
+
+
+def run_test_15():
+    """TEST 15: INPUT TRANSITION COVERAGE — ALL-EDGE-PAIRS"""
+    Console.header("TEST 15: INPUT TRANSITION COVERAGE — EDGE PAIR ANALYSIS")
+    s = SentinelModel()
+    errors = 0
+
+    # Test that the output is correct regardless of what the PREVIOUS input was.
+    # For combinational logic this should always be true, but this catches
+    # any accidental state retention or feedback loops.
+
+    # Critical transitions to test:
+    transitions = [
+        # (from_key, to_key, expected_description)
+        (0x00, VAELIX_KEY, "Zero → Valid key"),
+        (0xFF, VAELIX_KEY, "All-ones → Valid key"),
+        (VAELIX_KEY, 0x00, "Valid key → Zero"),
+        (VAELIX_KEY, 0xFF, "Valid key → All-ones"),
+        (VAELIX_KEY, 0xB7, "Valid key → H1 neighbor"),
+        (0xB7, VAELIX_KEY, "H1 neighbor → Valid key"),
+        (0x49, VAELIX_KEY, "Complement → Valid key"),
+        (VAELIX_KEY, 0x49, "Valid key → Complement"),
+        (0x00, 0xFF,       "Zero → All-ones"),
+        (0xFF, 0x00,       "All-ones → Zero"),
+        (0x01, 0x02,       "Walking-1 step"),
+        (0x55, 0xAA,       "Alternating pattern swap"),
+        (0xAA, 0x55,       "Alternating pattern swap (reverse)"),
+        (0xB5, VAELIX_KEY, "H1 below → Valid key"),
+        (VAELIX_KEY, 0xB5, "Valid key → H1 below"),
+        (0x00, 0x00,       "Zero → Zero (no change)"),
+        (VAELIX_KEY, VAELIX_KEY, "Valid → Valid (no change)"),
+        (0xFF, 0xFF,       "All-ones → All-ones (no change)"),
+    ]
+
+    Console.info(f"Testing {len(transitions)} critical input transitions...")
+    Console.info(f"Each transition: apply FROM, then TO, verify TO output is correct.")
+    print()
+
+    for from_key, to_key, desc in transitions:
+        # Set the "from" state
+        s.evaluate(from_key)
+
+        # Transition to "to" state
+        seg, glow, oe = s.evaluate(to_key)
+
+        # What should the output be?
+        if to_key == VAELIX_KEY:
+            exp_seg  = SEG_VERIFIED
+            exp_glow = GLOW_ACTIVE
+            exp_str  = "VERIFIED"
+        else:
+            exp_seg  = SEG_LOCKED
+            exp_glow = GLOW_DORMANT
+            exp_str  = "LOCKED"
+
+        ok = (seg == exp_seg and glow == exp_glow)
+
+        from_str = f"0x{from_key:02X}"
+        to_str   = f"0x{to_key:02X}"
+        arrow    = f"{from_str} → {to_str}"
+
+        if ok:
+            Console.passed(f"{arrow:>15s}  [{desc:.<40s}] → {exp_str}")
+        else:
+            Console.failed(f"{arrow:>15s}  [{desc}] → Expected {exp_str}, got seg={hex(seg)} glow={hex(glow)}")
+            errors += 1
+
+    Console.result("TEST 15: TRANSITION COVERAGE", errors == 0)
+    return errors == 0
+
+
 # ============================================================================
 # STANDALONE MAIN — RUN ALL TESTS WITH FULL CONSOLE OUTPUT
 # ============================================================================
@@ -547,6 +810,11 @@ def main():
         ("TEST  8: Walking Ones/Zeros Bus Scan",      run_test_8),
         ("TEST  9: Segment Encoding Fidelity",        run_test_9),
         ("TEST 10: Transform & Complement Rejection", run_test_10),
+        ("TEST 11: Hamming Weight — Same-Weight Keys", run_test_11),
+        ("TEST 12: Partial Nibble Match Attack",       run_test_12),
+        ("TEST 13: Glow-Segment Coherence Audit",      run_test_13),
+        ("TEST 14: Long Duration Hold (3000 cycles)",   run_test_14),
+        ("TEST 15: Input Transition Coverage",          run_test_15),
     ]
 
     results  = []
@@ -910,6 +1178,188 @@ if COCOTB_AVAILABLE:
             assert int(dut.uio_out.value) == GLOW_DORMANT
             dut._log.info(f"  [PASS] {name} ({hex(key)}): DEFLECTED")
         dut._log.info("TEST 10: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 11: HAMMING WEIGHT ANALYSIS
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_hamming_weight(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 11: HAMMING WEIGHT ANALYSIS")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        key_weight = bin(VAELIX_KEY).count('1')
+        same_weight = [v for v in range(256) if bin(v).count('1') == key_weight]
+        dut._log.info(f"  Weight {key_weight}: {len(same_weight)} keys to test")
+
+        auth = 0
+        defl = 0
+        for key in same_weight:
+            dut.ui_in.value = key
+            await ClockCycles(dut.clk, 1)
+            seg = int(dut.uo_out.value)
+            if key == VAELIX_KEY:
+                assert seg == SEG_VERIFIED, f"Valid key rejected: {hex(key)}"
+                auth += 1
+            else:
+                assert seg == SEG_LOCKED, f"WEIGHT BREACH at {hex(key)}: {hex(seg)}"
+                defl += 1
+
+        assert auth == 1 and defl == len(same_weight) - 1
+        dut._log.info(f"  [PASS] 1 authorized, {defl} deflected")
+        dut._log.info("TEST 11: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 12: PARTIAL NIBBLE MATCH
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_nibble_attack(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 12: NIBBLE ATTACK")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        upper = VAELIX_KEY & 0xF0
+        lower = VAELIX_KEY & 0x0F
+
+        # Upper nibble matches (0xBx)
+        for lo in range(16):
+            key = upper | lo
+            dut.ui_in.value = key
+            await ClockCycles(dut.clk, 1)
+            seg = int(dut.uo_out.value)
+            if key == VAELIX_KEY:
+                assert seg == SEG_VERIFIED
+            else:
+                assert seg == SEG_LOCKED, f"UPPER NIBBLE BREACH at {hex(key)}: {hex(seg)}"
+        dut._log.info("  [PASS] Upper nibble (0xBx): 15 deflected, 1 auth")
+
+        # Lower nibble matches (0xx6)
+        for hi in range(16):
+            key = (hi << 4) | lower
+            dut.ui_in.value = key
+            await ClockCycles(dut.clk, 1)
+            seg = int(dut.uo_out.value)
+            if key == VAELIX_KEY:
+                assert seg == SEG_VERIFIED
+            else:
+                assert seg == SEG_LOCKED, f"LOWER NIBBLE BREACH at {hex(key)}: {hex(seg)}"
+        dut._log.info("  [PASS] Lower nibble (0xx6): 15 deflected, 1 auth")
+        dut._log.info("TEST 12: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 13: GLOW-SEGMENT COHERENCE
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_glow_coherence(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 13: GLOW-SEGMENT COHERENCE")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        incoherent = 0
+        for key in range(256):
+            dut.ui_in.value = key
+            await ClockCycles(dut.clk, 1)
+            seg  = int(dut.uo_out.value)
+            glow = int(dut.uio_out.value)
+
+            if seg == SEG_VERIFIED:
+                if glow != GLOW_ACTIVE:
+                    incoherent += 1
+                    dut._log.error(f"  INCOHERENT at {hex(key)}: seg=VER glow={hex(glow)}")
+            elif seg == SEG_LOCKED:
+                if glow != GLOW_DORMANT:
+                    incoherent += 1
+                    dut._log.error(f"  INCOHERENT at {hex(key)}: seg=LCK glow={hex(glow)}")
+            else:
+                incoherent += 1
+                dut._log.error(f"  UNKNOWN STATE at {hex(key)}: seg={hex(seg)} glow={hex(glow)}")
+
+        assert incoherent == 0, f"COHERENCE FAILURE: {incoherent} incoherent outputs"
+        dut._log.info("  [PASS] All 256 keys: segment and glow COHERENT")
+        dut._log.info("TEST 13: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 14: LONG DURATION HOLD
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_long_hold(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 14: LONG HOLD (1000 cycles x3)")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        HOLD = 1000
+
+        # Hold LOCKED
+        dut.ui_in.value = 0x00
+        for c in range(HOLD):
+            await ClockCycles(dut.clk, 1)
+            assert int(dut.uo_out.value) == SEG_LOCKED, f"LOCKED drift at cycle {c}"
+        dut._log.info(f"  [PASS] LOCKED stable for {HOLD} cycles")
+
+        # Hold VERIFIED
+        dut.ui_in.value = VAELIX_KEY
+        for c in range(HOLD):
+            await ClockCycles(dut.clk, 1)
+            assert int(dut.uo_out.value) == SEG_VERIFIED, f"VERIFIED drift at cycle {c}"
+            assert int(dut.uio_out.value) == GLOW_ACTIVE, f"GLOW drift at cycle {c}"
+        dut._log.info(f"  [PASS] VERIFIED stable for {HOLD} cycles")
+
+        # Hold INVALID
+        dut.ui_in.value = 0x49
+        for c in range(HOLD):
+            await ClockCycles(dut.clk, 1)
+            assert int(dut.uo_out.value) == SEG_LOCKED, f"INVALID drift at cycle {c}"
+        dut._log.info(f"  [PASS] INVALID (0x49) stayed LOCKED for {HOLD} cycles")
+        dut._log.info("TEST 14: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 15: INPUT TRANSITION COVERAGE
+    # ================================================================
+    @cocotb.test()
+    async def test_sentinel_transition_coverage(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 15: TRANSITION COVERAGE")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        transitions = [
+            (0x00, VAELIX_KEY), (0xFF, VAELIX_KEY),
+            (VAELIX_KEY, 0x00), (VAELIX_KEY, 0xFF),
+            (VAELIX_KEY, 0xB7), (0xB7, VAELIX_KEY),
+            (0x49, VAELIX_KEY), (VAELIX_KEY, 0x49),
+            (0x00, 0xFF),       (0xFF, 0x00),
+            (0x01, 0x02),       (0x55, 0xAA),
+            (0xAA, 0x55),       (0xB5, VAELIX_KEY),
+            (VAELIX_KEY, 0xB5), (0x00, 0x00),
+            (VAELIX_KEY, VAELIX_KEY), (0xFF, 0xFF),
+        ]
+
+        errs = 0
+        for from_k, to_k in transitions:
+            dut.ui_in.value = from_k
+            await ClockCycles(dut.clk, 1)
+            dut.ui_in.value = to_k
+            await ClockCycles(dut.clk, 1)
+
+            seg  = int(dut.uo_out.value)
+            glow = int(dut.uio_out.value)
+            exp_seg  = SEG_VERIFIED if to_k == VAELIX_KEY else SEG_LOCKED
+            exp_glow = GLOW_ACTIVE  if to_k == VAELIX_KEY else GLOW_DORMANT
+
+            if seg != exp_seg or glow != exp_glow:
+                dut._log.error(f"  TRANSITION FAIL: {hex(from_k)}→{hex(to_k)} seg={hex(seg)} glow={hex(glow)}")
+                errs += 1
+            else:
+                exp_str = "VER" if to_k == VAELIX_KEY else "LCK"
+                dut._log.info(f"  [PASS] {hex(from_k)}→{hex(to_k)}: {exp_str}")
+
+        assert errs == 0, f"TRANSITION FAILURE: {errs} bad transitions"
+        dut._log.info(f"  [PASS] All {len(transitions)} transitions clean")
+        dut._log.info("TEST 15: COMPLETE")
 
 
 # ============================================================================
