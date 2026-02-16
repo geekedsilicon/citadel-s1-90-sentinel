@@ -1807,6 +1807,151 @@ if COCOTB_AVAILABLE:
         dut._log.info("  ✓ (* keep *) attribute prevents optimization")
         dut._log.info("TEST 16: COMPLETE")
 
+    # ================================================================
+    # COCOTB TEST 16: DEBOUNCER STABILITY REQUIREMENT
+    # ================================================================
+    @cocotb.test()
+    async def test_debouncer_stability(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 16: DEBOUNCER STABILITY (4 CYCLES)")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Start with wrong key
+        dut.ui_in.value = 0x00
+        await ClockCycles(dut.clk, 5)
+        assert int(dut.uo_out.value) == SEG_LOCKED
+        dut._log.info("  [INIT] System locked with 0x00")
+
+        # Apply correct key and hold for 1 cycle - should NOT authorize yet
+        dut.ui_in.value = VAELIX_KEY
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        # Due to debouncing, should still be locked after 1 cycle
+        dut._log.info(f"  [CYCLE 1] Key={hex(VAELIX_KEY)}, seg={hex(seg)}")
+        
+        # Hold for 2nd cycle - should still not authorize
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"  [CYCLE 2] Key={hex(VAELIX_KEY)}, seg={hex(seg)}")
+        
+        # Hold for 3rd cycle - should still not authorize
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"  [CYCLE 3] Key={hex(VAELIX_KEY)}, seg={hex(seg)}")
+        
+        # Hold for 4th cycle - should still not authorize (needs to complete 4 cycles)
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        dut._log.info(f"  [CYCLE 4] Key={hex(VAELIX_KEY)}, seg={hex(seg)}")
+        
+        # After 4 full cycles of stability, signal should be accepted
+        await ClockCycles(dut.clk, 1)
+        seg = int(dut.uo_out.value)
+        assert seg == SEG_VERIFIED, f"Key not accepted after 4 stable cycles: {hex(seg)}"
+        dut._log.info(f"  [PASS] Key accepted after 4+ cycles: seg={hex(seg)}")
+        dut._log.info("TEST 16: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 17: RAPID TOGGLING REJECTION
+    # ================================================================
+    @cocotb.test()
+    async def test_debouncer_rapid_toggle(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 17: RAPID TOGGLE REJECTION")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Start locked
+        dut.ui_in.value = 0x00
+        await ClockCycles(dut.clk, 5)
+        assert int(dut.uo_out.value) == SEG_LOCKED
+        dut._log.info("  [INIT] System locked")
+
+        # Rapidly toggle between correct and incorrect key (< 4 cycles each)
+        # This should be rejected by the debouncer
+        for i in range(20):
+            dut.ui_in.value = VAELIX_KEY
+            await ClockCycles(dut.clk, 1)
+            dut.ui_in.value = 0x00
+            await ClockCycles(dut.clk, 1)
+
+        # Check that system is still locked (rapid toggling was rejected)
+        seg = int(dut.uo_out.value)
+        assert seg == SEG_LOCKED, f"Rapid toggle was not rejected: {hex(seg)}"
+        dut._log.info(f"  [PASS] Rapid toggling rejected, system still locked")
+        dut._log.info("TEST 17: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 18: FUZZING ATTACK DETECTION
+    # ================================================================
+    @cocotb.test()
+    async def test_debouncer_fuzzing_attack(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 18: FUZZING ATTACK LOCKOUT")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Start locked
+        dut.ui_in.value = 0x00
+        await ClockCycles(dut.clk, 5)
+        assert int(dut.uo_out.value) == SEG_LOCKED
+        dut._log.info("  [INIT] System locked")
+
+        # Trigger fuzzing attack: >10 changes in 100 cycles
+        # Let's do 15 changes (30 transitions) to ensure detection
+        for i in range(15):
+            dut.ui_in.value = 0x00
+            await ClockCycles(dut.clk, 1)
+            dut.ui_in.value = 0xFF
+            await ClockCycles(dut.clk, 1)
+
+        dut._log.info("  [ATTACK] Generated 15 transitions (>10 threshold)")
+
+        # Now try to authenticate with correct key
+        # Should be locked out
+        dut.ui_in.value = VAELIX_KEY
+        await ClockCycles(dut.clk, 10)
+        seg = int(dut.uo_out.value)
+        
+        # System should remain locked due to lockout
+        assert seg == SEG_LOCKED, f"Lockout failed, system authorized: {hex(seg)}"
+        dut._log.info(f"  [PASS] System locked out, authentication blocked")
+        
+        # Verify lockout persists for a while
+        await ClockCycles(dut.clk, 100)
+        seg = int(dut.uo_out.value)
+        assert seg == SEG_LOCKED, f"Lockout expired too early: {hex(seg)}"
+        dut._log.info(f"  [PASS] Lockout persists after 100 cycles")
+        dut._log.info("TEST 18: COMPLETE")
+
+    # ================================================================
+    # COCOTB TEST 19: DEBOUNCER NORMAL OPERATION
+    # ================================================================
+    @cocotb.test()
+    async def test_debouncer_normal_operation(dut):
+        dut._log.info("VAELIX SENTINEL | TEST 19: DEBOUNCER NORMAL OPERATION")
+        clock = Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns")
+        cocotb.start_soon(clock.start())
+        await reset_sentinel(dut)
+
+        # Test that normal slow transitions work correctly
+        test_keys = [0x00, 0xFF, 0x12, 0x34, 0xAB, VAELIX_KEY, 0x00]
+        
+        for key in test_keys:
+            dut.ui_in.value = key
+            # Hold for sufficient cycles to pass debouncing (5+ cycles)
+            await ClockCycles(dut.clk, 6)
+            
+            seg = int(dut.uo_out.value)
+            exp_seg = SEG_VERIFIED if key == VAELIX_KEY else SEG_LOCKED
+            
+            assert seg == exp_seg, f"Normal operation failed at {hex(key)}: seg={hex(seg)}, expected={hex(exp_seg)}"
+            status = "VERIFIED" if key == VAELIX_KEY else "LOCKED"
+            dut._log.info(f"  [PASS] Key {hex(key)}: {status}")
+        
+        dut._log.info("TEST 19: COMPLETE")
+
 
 # ============================================================================
 # ENTRY POINT
