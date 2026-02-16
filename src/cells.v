@@ -14,9 +14,11 @@
  * LINTING & DIRECTIVES:
  * - `default_nettype none: Enforces explicit declaration of all nets.
  * - Bitwise Operators (~, &, |): Preferred for physical gate mapping.
+ * - DECLFILENAME disabled: This file intentionally contains multiple modules.
  * ============================================================================
  */
 
+/* verilator lint_off DECLFILENAME */
 `default_nettype none
 
 // CITADEL_CELLS: Mapping layer for Wokwi primitive modules to Vaelix-standard logic gates.
@@ -29,6 +31,7 @@ endmodule
  * --------------------------------------------------------------------- */
 
 // CITADEL_BUFFER: Signal conditioning and mesh synchronization.
+/* verilator lint_off DECLFILENAME */
 (* keep_hierarchy *)
 module buffer_cell (
     input  wire in,
@@ -105,6 +108,7 @@ module not_cell (
 );
     assign out = ~in;
 endmodule
+/* verilator lint_on DECLFILENAME */
 
 // CITADEL_MUX: Dynamic data routing for the Sentinel Mesh.
 (* keep_hierarchy *)
@@ -173,4 +177,19 @@ module dffsr_cell (
         else
             q <= d;
     end
+endmodule
+
+
+/* ---------------------------------------------------------------------
+ * 3. PDK PRIMITIVES (IHP SG13G2)
+ * --------------------------------------------------------------------- */
+
+// SG13G2_BUF_2: 2x drive strength buffer from IHP 130nm SG13G2 PDK.
+// Used for glitch detection circuits (Gerlinsky Guard).
+(* keep_hierarchy *)
+module sg13g2_buf_2 (
+    input  wire A,
+    output wire X
+);
+    assign X = A;
 endmodule

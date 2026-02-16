@@ -2,7 +2,7 @@
 # VAELIX | SENTINEL MARK I — GDSII HARDENING PIPELINE
 # ==============================================================================
 # FILE:      .github/workflows/gds.yaml
-# VERSION:   1.1.0 — Citadel Standard
+# VERSION:   1.2.0 — Citadel Standard
 # TARGET:    Tiny Tapeout 06 (IHP 130nm SG13G2) — ttihp26a Shuttle
 # REPO:      citadel-s1-90-sentinel
 #
@@ -11,10 +11,10 @@
 #   Deploys the interactive layout viewer to GitHub Pages on completion.
 #
 # PIPELINE ORDER:
-#   gds → viewer
+#   gds → metrics → viewer
 #
 # NOTE — SENTINEL VS CORE PIPELINE:
-#   This pipeline runs gds + viewer only.
+#   This pipeline runs gds + metrics + viewer.
 #   citadel-s1-90-core additionally runs precheck + gl_test.
 #   Do NOT add those jobs here — the sentinel is Wokwi-based and does
 #   not have the gate-level netlist infrastructure those jobs require.
@@ -25,6 +25,7 @@
 #   shuttle coordinator approval.
 #
 # FIX LOG:
+#   v1.2.0 — [SECURITY] Added path sanitization to prevent runner info leakage
 #   v1.1.0 — [CRITICAL] Removed 'branches: main' filter from push trigger
 #             GDS must build on all branches, not just main.
 #   v1.1.0 — Added concurrency guard (cancels stale hardening runs)
@@ -39,6 +40,12 @@ name: gds
 on:
   push:
   workflow_dispatch:
+    inputs:
+      bypass_metrics:
+        description: 'Bypass metrics threshold check'
+        required: false
+        type: boolean
+        default: false
 
 # Cancel any in-progress hardening run when a newer push arrives.
 # GDS synthesis is the most expensive job — never let stale runs hold runners.
@@ -54,11 +61,26 @@ jobs:
   # ----------------------------------------------------------------------------
   gds:
     runs-on: ubuntu-24.04
+    env:
+      # Sanitize paths in logs to prevent runner username/structure leakage
+      # GitHub Actions automatically masks secret values, but we need to
+      # prevent local paths from revealing runner infrastructure details
+      RUNNER_WORKSPACE_SANITIZED: "/workspace"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Sanitize environment paths
+        run: |
+          echo "🔒 Sanitizing runner path information..."
+          # Mask the actual runner workspace path in GitHub Actions logs
+          echo "::add-mask::$GITHUB_WORKSPACE"
+          echo "::add-mask::$HOME"
+          echo "::add-mask::$(pwd)"
+          echo "::add-mask::$(dirname $GITHUB_WORKSPACE)"
+          echo "Working directory: [SANITIZED]"
 
       - name: Check Wokwi project ID
         id: check_wokwi
@@ -78,13 +100,182 @@ jobs:
           # ⚠️ MANDATORY VERSION — do not upgrade without shuttle approval.
           librelane-version: 3.0.0.dev44
 
+      # Store synthesis metrics for comparison
+      - name: Upload synthesis metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthesis-metrics-current
+          path: runs/wokwi/
+
   # ----------------------------------------------------------------------------
-  # JOB 2: LAYOUT VIEWER DEPLOYMENT
+  # JOB 2: METRICS COMPARISON (THE WARDEN)
+  # Compares cell count (gate count) against main branch.
+  # Power consumption is correlated with gate count in digital designs.
+  # Fails build if gate count increases by more than 5% without bypass.
+  # ----------------------------------------------------------------------------
+  metrics:
+    needs: gds
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read  # Required to checkout repository
+      actions: read   # Required to download artifacts
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download current branch metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: synthesis-metrics-current
+          path: runs-current/
+
+      - name: Extract current branch metrics
+        id: current_metrics
+        run: |
+          # Find and parse synthesis log for cell count
+          LOG_FILE=$(find runs-current/ -name "*.log" -type f | xargs grep -l "Number of cells" | head -1)
+
+          if [ -z "$LOG_FILE" ]; then
+            echo "Error: Could not find synthesis log with cell count"
+            exit 1
+          fi
+
+          # Extract cell count from Yosys statistics
+          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oE '[0-9]+' | head -1)
+
+          if [ -z "$CELL_COUNT" ]; then
+            echo "Error: Could not extract cell count from log"
+            exit 1
+          fi
+
+          echo "cell_count=$CELL_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Current branch cell count: $CELL_COUNT"
+
+      - name: Checkout main branch for comparison
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: recursive
+          path: main-repo
+
+      - name: Build GDS for main branch
+        run: |
+          # Save current directory
+          ORIGINAL_DIR=$(pwd)
+
+          # Change to main branch directory
+          cd main-repo
+
+          # Clone tt-support-tools
+          git clone https://github.com/TinyTapeout/tt-support-tools.git tt
+
+          # Setup Python requirements
+          pip install -r tt/requirements.txt
+
+          # Create user config and build
+          ./tt/tt_tool.py --create-user-config --ihp
+
+          # Install LibreLane
+          pip install librelane==3.0.0.dev44
+
+          # Harden the design
+          ./tt/tt_tool.py --harden --ihp
+
+          # Return to original directory
+          cd "$ORIGINAL_DIR"
+
+      - name: Extract main branch metrics
+        id: main_metrics
+        run: |
+          # Find and parse synthesis log for cell count from main-repo
+          LOG_FILE=$(find main-repo/runs/wokwi/ -name "*.log" -type f 2>/dev/null | xargs grep -l "Number of cells" 2>/dev/null | head -1)
+
+          if [ -z "$LOG_FILE" ]; then
+            echo "⚠️  Warning: Could not find main branch synthesis log"
+            echo "Skipping comparison (main branch may not have been built yet)"
+            echo "cell_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CELL_COUNT=$(grep "Number of cells:" "$LOG_FILE" | tail -1 | grep -oE '[0-9]+' | head -1)
+
+          if [ -z "$CELL_COUNT" ]; then
+            echo "⚠️  Warning: Could not extract main branch cell count"
+            echo "cell_count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "cell_count=$CELL_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Main branch cell count: $CELL_COUNT"
+
+      - name: Compare metrics and enforce threshold
+        run: |
+          CURRENT_CELLS=${{ steps.current_metrics.outputs.cell_count }}
+          MAIN_CELLS=${{ steps.main_metrics.outputs.cell_count }}
+
+          # Check for manual bypass via workflow input or commit message
+          BYPASS_INPUT="${{ github.event.inputs.bypass_metrics }}"
+          BYPASS_COMMIT=$(git log -1 --pretty=%B | grep -i "\[bypass-metrics\]" || echo "")
+
+          # Validate that we have numeric values
+          if [ -z "$MAIN_CELLS" ] || [ "$MAIN_CELLS" -eq "0" ]; then
+            echo "⚠️  No baseline metrics from main branch - skipping comparison"
+            exit 0
+          fi
+
+          if [ -z "$CURRENT_CELLS" ]; then
+            echo "❌ Error: Could not extract current branch metrics"
+            exit 1
+          fi
+
+          if [ "$BYPASS_INPUT" = "true" ] || [ ! -z "$BYPASS_COMMIT" ]; then
+            echo "✓ Manual bypass detected - skipping threshold check"
+            echo "  Current: $CURRENT_CELLS cells | Main: $MAIN_CELLS cells"
+            exit 0
+          fi
+
+          # Calculate percentage change (with division by zero safety)
+          CHANGE=$(echo "scale=2; ($CURRENT_CELLS - $MAIN_CELLS) * 100 / $MAIN_CELLS" | bc)
+
+          echo ""
+          echo "════════════════════════════════════════════════════════"
+          echo "  METRICS COMPARISON (THE WARDEN)"
+          echo "════════════════════════════════════════════════════════"
+          echo "  Current branch: $CURRENT_CELLS cells"
+          echo "  Main branch:    $MAIN_CELLS cells"
+          echo "  Change:         $CHANGE%"
+          echo "════════════════════════════════════════════════════════"
+          echo ""
+
+          # Check if change is an increase and exceeds threshold (5%)
+          IS_INCREASE=$(echo "$CHANGE > 0" | bc)
+          EXCEEDS_THRESHOLD=$(echo "$CHANGE > 5" | bc)
+
+          if [ "$IS_INCREASE" -eq "1" ] && [ "$EXCEEDS_THRESHOLD" -eq "1" ]; then
+            echo "❌ GATE COUNT INCREASE EXCEEDS 5% THRESHOLD"
+            echo ""
+            echo "   Increase: $CHANGE% (threshold: 5%)"
+            echo ""
+            echo "   To bypass this check:"
+            echo "   - Include '[bypass-metrics]' in your commit message, OR"
+            echo "   - Manually trigger workflow with 'bypass_metrics' option enabled"
+            echo ""
+            exit 1
+          elif [ "$IS_INCREASE" -eq "1" ]; then
+            echo "✓ Gate count increased by $CHANGE% (within 5% threshold)"
+          else
+            echo "✓ Gate count decreased or unchanged ($CHANGE%)"
+          fi
+
+  # ----------------------------------------------------------------------------
+  # JOB 3: LAYOUT VIEWER DEPLOYMENT
   # Deploys the interactive GDSII viewer to GitHub Pages.
   # Requires pages and id-token permissions for authenticated deployment.
   # ----------------------------------------------------------------------------
   viewer:
-    needs: gds
+    needs: [gds, metrics]
     runs-on: ubuntu-24.04
     permissions:
       pages: write # Required to deploy to GitHub Pages

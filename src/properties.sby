@@ -1,0 +1,32 @@
+# ============================================================================
+# PROJECT CITADEL | FORMAL VERIFICATION CONFIGURATION
+# ============================================================================
+# FILE:     properties.sby
+# PURPOSE:  SymbiYosys configuration for tt_um_vaelix_sentinel formal verification
+# ENGINE:   smtbmc (SMT-based model checking)
+# DEPTH:    20 cycles
+# ============================================================================
+
+[options]
+# BMC (Bounded Model Checking) mode is used to search for counterexamples
+# within the specified depth. This is appropriate for finding assertion
+# violations or satisfying cover properties within a bounded timeframe.
+mode bmc
+depth 20
+
+[engines]
+smtbmc
+
+[script]
+# Read the design files
+read -formal cells.v
+read -formal tt_um_vaelix_sentinel.v
+read -formal -sv assertions.sv
+
+# Prepare the design for formal verification
+prep -top tt_um_vaelix_sentinel
+
+[files]
+cells.v
+tt_um_vaelix_sentinel.v
+assertions.sv
