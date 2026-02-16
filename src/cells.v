@@ -8,7 +8,7 @@
  *
  * DESCRIPTION:
  * Mapping layer for Wokwi primitive modules to Vaelix-standard logic gates.
- * All modules include 'keep_hierarchy' to preserve netlist structural 
+ * All modules include 'keep_hierarchy' to preserve netlist structural
  * integrity during the OpenLane synthesis flow.
  *
  * LINTING & DIRECTIVES:
@@ -18,6 +18,11 @@
  */
 
 `default_nettype none
+
+// CITADEL_CELLS: Mapping layer for Wokwi primitive modules to Vaelix-standard logic gates.
+(* keep_hierarchy *)
+module cells ();
+endmodule
 
 /* ---------------------------------------------------------------------
  * 1. COMBINATIONAL LOGIC PRIMITIVES
